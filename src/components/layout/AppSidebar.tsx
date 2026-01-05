@@ -156,7 +156,7 @@ const AppSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { state, toggleSidebar } = useSidebar();
-  const { user, isMaster, signOut } = useAuth();
+  const { user, isMaster, allowedPages, signOut } = useAuth();
   const isCollapsed = state === 'collapsed';
   const [openGroups, setOpenGroups] = useState<string[]>(
     menuGroups.filter(g => g.defaultOpen).map(g => g.title)
@@ -191,16 +191,21 @@ const AppSidebar = () => {
     return 'U';
   };
 
-  // Filter menu items based on master status
+  // Filter menu items based on user's allowed pages
   const getFilteredGroups = () => {
     return menuGroups.map(group => ({
       ...group,
       items: group.items.filter(item => {
         // Admin Panel is removed from sidebar completely
-        // It's only accessible via direct URL for master users
-        return item.url !== '/admin';
+        if (item.url === '/admin') return false;
+        
+        // Master users can see all pages
+        if (isMaster) return true;
+        
+        // Regular users only see their allowed pages
+        return allowedPages.includes(item.url);
       })
-    }));
+    })).filter(group => group.items.length > 0); // Remove empty groups
   };
 
   const filteredGroups = getFilteredGroups();

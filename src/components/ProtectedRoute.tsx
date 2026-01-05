@@ -1,20 +1,36 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+  const { user, loading, allowedPages, isMaster } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth', { replace: true });
+      return;
     }
-  }, [user, loading, navigate]);
+
+    // Check page access after user is loaded
+    if (!loading && user && !isMaster) {
+      const currentPath = location.pathname;
+      
+      // Always allow profile and settings
+      const alwaysAllowed = ['/profile', '/settings'];
+      
+      if (!alwaysAllowed.includes(currentPath) && !allowedPages.includes(currentPath)) {
+        toast.error('You do not have access to this page');
+        navigate('/', { replace: true });
+      }
+    }
+  }, [user, loading, navigate, allowedPages, isMaster, location.pathname]);
 
   if (loading) {
     return (
