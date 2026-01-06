@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettings } from '@/hooks/useAppSettings';
+import { isPreviewDomain } from '@/hooks/usePreviewMode';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,12 @@ const Auth = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    // Redirect to home on preview domain
+    if (isPreviewDomain()) {
+      navigate('/');
+      return;
+    }
+    
     if (user && !loading) {
       navigate('/');
     }

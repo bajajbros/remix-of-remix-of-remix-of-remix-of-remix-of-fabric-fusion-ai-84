@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { isPreviewDomain } from '@/hooks/usePreviewMode';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -12,7 +13,13 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Check if we're on preview domain - bypass auth
+  const isPreview = isPreviewDomain();
+
   useEffect(() => {
+    // Skip auth check on preview domain
+    if (isPreview) return;
+
     if (!loading && !user) {
       navigate('/auth', { replace: true });
       return;
@@ -31,6 +38,11 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       }
     }
   }, [user, loading, navigate, allowedPages, isMaster, location.pathname]);
+
+  // Allow access on preview domain without loading/auth checks
+  if (isPreview) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (
