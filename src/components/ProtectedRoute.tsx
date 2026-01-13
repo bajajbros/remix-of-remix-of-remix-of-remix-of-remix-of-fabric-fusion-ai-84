@@ -29,12 +29,12 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     if (!loading && user && !isMaster) {
       const currentPath = location.pathname;
       
-      // Always allow profile and settings
-      const alwaysAllowed = ['/profile', '/settings'];
+      // Always allow profile, settings, and dashboard
+      const alwaysAllowed = ['/profile', '/settings', '/dashboard'];
       
       if (!alwaysAllowed.includes(currentPath) && !allowedPages.includes(currentPath)) {
         toast.error('You do not have access to this page');
-        navigate('/', { replace: true });
+        navigate('/dashboard', { replace: true });
       }
     }
   }, [user, loading, navigate, allowedPages, isMaster, location.pathname]);

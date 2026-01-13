@@ -34,6 +34,9 @@ import {
   Crown,
   Clock,
   Eye,
+  Globe,
+  FileText,
+  Phone,
 } from 'lucide-react';
 
 interface UserWithRole {
@@ -56,7 +59,7 @@ interface UserActivity {
 }
 
 const allPages = [
-  { path: '/', label: 'Dashboard' },
+  { path: '/dashboard', label: 'Dashboard' },
   { path: '/system-status', label: 'System Status' },
   { path: '/alerts', label: 'Alerts Center' },
   { path: '/sales-forecast', label: 'Sales Forecast' },
@@ -101,13 +104,23 @@ const AdminPanel = () => {
     logo_url: '',
   });
 
+  // Landing page content state
+  const [landingContent, setLandingContent] = useState({
+    hero_title: 'Transform Your Business with Intelligent AI',
+    hero_subtitle: 'QWII is the ultimate AI-powered platform designed for modern businesses.',
+    whatsapp_number: '917303408500',
+    contact_email: 'contact@qwii.in',
+    founder_1_name: 'Mayank Bajaj',
+    founder_2_name: 'Himanshu Kumar',
+  });
+
   // New user form state
   const [newUser, setNewUser] = useState({
     email: '',
     password: '',
     full_name: '',
     role: 'viewer',
-    allowed_pages: ['/'],
+    allowed_pages: ['/dashboard'],
   });
 
   useEffect(() => {
@@ -118,7 +131,7 @@ const AdminPanel = () => {
     
     if (!loading && user && !isMaster) {
       toast.error('Access denied. Master admin only.');
-      navigate('/');
+      navigate('/dashboard');
       return;
     }
   }, [user, loading, isMaster, navigate]);
@@ -228,7 +241,7 @@ const AdminPanel = () => {
 
       toast.success('User created successfully');
       setIsCreateDialogOpen(false);
-      setNewUser({ email: '', password: '', full_name: '', role: 'viewer', allowed_pages: ['/'] });
+      setNewUser({ email: '', password: '', full_name: '', role: 'viewer', allowed_pages: ['/dashboard'] });
       fetchUsers();
       fetchActivities();
     } catch (error: unknown) {
@@ -435,6 +448,10 @@ const AdminPanel = () => {
             <TabsTrigger value="settings" className="gap-2">
               <Settings size={14} />
               Branding
+            </TabsTrigger>
+            <TabsTrigger value="landing" className="gap-2">
+              <Globe size={14} />
+              Landing Page
             </TabsTrigger>
             <TabsTrigger value="activities" className="gap-2">
               <Activity size={14} />
@@ -738,6 +755,110 @@ const AdminPanel = () => {
               <Save size={14} />
               {isLoading ? 'Saving...' : 'Save Branding Settings'}
             </Button>
+          </TabsContent>
+
+          {/* Landing Page Tab */}
+          <TabsContent value="landing" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Hero Section */}
+              <div className="glass-card p-6 space-y-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <FileText size={16} className="text-primary" />
+                  Hero Section
+                </h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Hero Title</Label>
+                    <Input
+                      value={landingContent.hero_title}
+                      onChange={(e) => setLandingContent({ ...landingContent, hero_title: e.target.value })}
+                      placeholder="Transform Your Business with Intelligent AI"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Hero Subtitle</Label>
+                    <Input
+                      value={landingContent.hero_subtitle}
+                      onChange={(e) => setLandingContent({ ...landingContent, hero_subtitle: e.target.value })}
+                      placeholder="QWII is the ultimate AI-powered platform..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="glass-card p-6 space-y-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Phone size={16} className="text-primary" />
+                  Contact Information
+                </h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>WhatsApp Number (with country code)</Label>
+                    <Input
+                      value={landingContent.whatsapp_number}
+                      onChange={(e) => setLandingContent({ ...landingContent, whatsapp_number: e.target.value })}
+                      placeholder="917303408500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Contact Email</Label>
+                    <Input
+                      type="email"
+                      value={landingContent.contact_email}
+                      onChange={(e) => setLandingContent({ ...landingContent, contact_email: e.target.value })}
+                      placeholder="contact@qwii.in"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Founders */}
+              <div className="glass-card p-6 space-y-4 md:col-span-2">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Users size={16} className="text-primary" />
+                  Founders
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Founder 1 Name</Label>
+                    <Input
+                      value={landingContent.founder_1_name}
+                      onChange={(e) => setLandingContent({ ...landingContent, founder_1_name: e.target.value })}
+                      placeholder="Mayank Bajaj"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Founder 2 Name</Label>
+                    <Input
+                      value={landingContent.founder_2_name}
+                      onChange={(e) => setLandingContent({ ...landingContent, founder_2_name: e.target.value })}
+                      placeholder="Himanshu Kumar"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <Button className="gap-2" disabled={isLoading}>
+                <Save size={14} />
+                Save Landing Page Settings
+              </Button>
+              <a href="/" target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" className="gap-2">
+                  <Eye size={14} />
+                  Preview Landing Page
+                </Button>
+              </a>
+            </div>
+
+            <div className="glass-card p-4 border-warning/50">
+              <p className="text-sm text-muted-foreground">
+                <strong className="text-warning">Note:</strong> Landing page content management is coming soon. 
+                Currently, you can preview the landing page and modify content directly in the code.
+              </p>
+            </div>
           </TabsContent>
 
           {/* Activities Tab */}

@@ -24,14 +24,14 @@ const Auth = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Redirect to home on preview domain
+    // Redirect to dashboard on preview domain
     if (isPreviewDomain()) {
-      navigate('/');
+      navigate('/dashboard');
       return;
     }
     
     if (user && !loading) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [user, loading, navigate]);
 
@@ -66,7 +66,7 @@ const Auth = () => {
       }
     } else {
       toast.success('Welcome back!');
-      navigate('/');
+      navigate('/dashboard');
     }
   };
 
@@ -153,9 +153,17 @@ const Auth = () => {
           </p>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          Powered by QWII • Enterprise Manufacturing Intelligence
-        </p>
+        <div className="text-center mt-6 space-y-2">
+          <a 
+            href="/"
+            className="text-sm text-primary hover:underline"
+          >
+            ← Back to Home
+          </a>
+          <p className="text-xs text-muted-foreground">
+            Powered by QWII • Enterprise Manufacturing Intelligence
+          </p>
+        </div>
       </div>
     </div>
   );

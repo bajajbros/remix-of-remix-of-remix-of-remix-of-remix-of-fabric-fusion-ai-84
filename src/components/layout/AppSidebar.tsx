@@ -91,7 +91,7 @@ const menuGroups: MenuGroup[] = [
     icon: Cpu,
     defaultOpen: true,
     items: [
-      { title: 'Dashboard', url: '/', icon: LayoutDashboard },
+      { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
       { title: 'System Status', url: '/system-status', icon: Activity, badge: 'Live', badgeColor: 'accent' },
       { title: 'Alerts Center', url: '/alerts', icon: AlertTriangle, badge: '3', badgeColor: 'warning' },
     ],
