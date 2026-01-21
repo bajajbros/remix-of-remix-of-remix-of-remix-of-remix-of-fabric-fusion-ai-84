@@ -35,6 +35,193 @@ export type Database = {
         }
         Relationships: []
       }
+      client_orders: {
+        Row: {
+          actual_delivery: string | null
+          client_id: string
+          created_at: string
+          discount_amount: number | null
+          expected_delivery: string | null
+          id: string
+          notes: string | null
+          order_date: string
+          order_number: string
+          paid_amount: number | null
+          payment_status: string | null
+          priority: string | null
+          status: string
+          subtotal: number
+          tax_amount: number | null
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual_delivery?: string | null
+          client_id: string
+          created_at?: string
+          discount_amount?: number | null
+          expected_delivery?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          order_number: string
+          paid_amount?: number | null
+          payment_status?: string | null
+          priority?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual_delivery?: string | null
+          client_id?: string
+          created_at?: string
+          discount_amount?: number | null
+          expected_delivery?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          order_number?: string
+          paid_amount?: number | null
+          payment_status?: string | null
+          priority?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          address: string | null
+          city: string | null
+          company: string | null
+          country: string | null
+          created_at: string
+          credit_limit: number | null
+          email: string | null
+          gst_number: string | null
+          id: string
+          name: string
+          notes: string | null
+          outstanding_amount: number | null
+          pan_number: string | null
+          phone: string | null
+          state: string | null
+          status: string
+          total_orders: number | null
+          type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company?: string | null
+          country?: string | null
+          created_at?: string
+          credit_limit?: number | null
+          email?: string | null
+          gst_number?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          outstanding_amount?: number | null
+          pan_number?: string | null
+          phone?: string | null
+          state?: string | null
+          status?: string
+          total_orders?: number | null
+          type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company?: string | null
+          country?: string | null
+          created_at?: string
+          credit_limit?: number | null
+          email?: string | null
+          gst_number?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          outstanding_amount?: number | null
+          pan_number?: string | null
+          phone?: string | null
+          state?: string | null
+          status?: string
+          total_orders?: number | null
+          type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      order_items: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          order_id: string
+          product_name: string
+          quantity: number
+          sku: string | null
+          total_price: number
+          unit: string | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id: string
+          product_name: string
+          quantity?: number
+          sku?: string | null
+          total_price: number
+          unit?: string | null
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id?: string
+          product_name?: string
+          quantity?: number
+          sku?: string | null
+          total_price?: number
+          unit?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "client_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
