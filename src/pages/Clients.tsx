@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useClients, CreateClientInput } from '@/hooks/useClients';
+import { exportToCSV, formatDate, formatCurrencyFull } from '@/lib/exportUtils';
+import { toast } from '@/hooks/use-toast';
 import {
   Users,
   Plus,
@@ -29,6 +31,7 @@ import {
   CheckCircle,
   Loader2,
   RefreshCw,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { Client } from '@/hooks/useClients';
@@ -408,10 +411,100 @@ const Clients = () => {
               <SelectItem value="pending">Pending</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2">
-            <Download size={14} />
-            Export
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download size={14} />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                if (filteredClients.length === 0) {
+                  toast({ title: "No data to export", description: "Add some clients first", variant: "destructive" });
+                  return;
+                }
+                exportToCSV(
+                  filteredClients,
+                  [
+                    { header: 'Name', accessor: 'name' },
+                    { header: 'Company', accessor: 'company' },
+                    { header: 'Email', accessor: 'email' },
+                    { header: 'Phone', accessor: 'phone' },
+                    { header: 'City', accessor: 'city' },
+                    { header: 'State', accessor: 'state' },
+                    { header: 'Country', accessor: 'country' },
+                    { header: 'GST Number', accessor: 'gst_number' },
+                    { header: 'PAN Number', accessor: 'pan_number' },
+                    { header: 'Credit Limit', accessor: 'credit_limit' },
+                    { header: 'Outstanding', accessor: 'outstanding_amount' },
+                    { header: 'Total Orders', accessor: 'total_orders' },
+                    { header: 'Status', accessor: 'status' },
+                    { header: 'Type', accessor: 'type' },
+                    { header: 'Address', accessor: 'address' },
+                    { header: 'Notes', accessor: 'notes' },
+                    { header: 'Created', accessor: (c: Client) => formatDate(c.created_at) },
+                  ],
+                  `clients-export-${new Date().toISOString().split('T')[0]}.csv`
+                );
+                toast({ title: "Export successful", description: `${filteredClients.length} clients exported` });
+              }}>
+                <FileSpreadsheet size={14} className="mr-2" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                if (filteredClients.length === 0) {
+                  toast({ title: "No data to export", description: "Add some clients first", variant: "destructive" });
+                  return;
+                }
+                exportToCSV(
+                  filteredClients.filter(c => c.status === 'active'),
+                  [
+                    { header: 'Name', accessor: 'name' },
+                    { header: 'Company', accessor: 'company' },
+                    { header: 'Email', accessor: 'email' },
+                    { header: 'Phone', accessor: 'phone' },
+                    { header: 'City', accessor: 'city' },
+                    { header: 'Type', accessor: 'type' },
+                    { header: 'Credit Limit', accessor: 'credit_limit' },
+                    { header: 'Outstanding', accessor: 'outstanding_amount' },
+                  ],
+                  `active-clients-${new Date().toISOString().split('T')[0]}.csv`
+                );
+                toast({ title: "Export successful", description: "Active clients exported" });
+              }}>
+                <CheckCircle size={14} className="mr-2" />
+                Export Active Only
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                if (filteredClients.length === 0) {
+                  toast({ title: "No data to export", description: "Add some clients first", variant: "destructive" });
+                  return;
+                }
+                const withOutstanding = filteredClients.filter(c => c.outstanding_amount > 0);
+                if (withOutstanding.length === 0) {
+                  toast({ title: "No outstanding amounts", description: "All clients are cleared", variant: "default" });
+                  return;
+                }
+                exportToCSV(
+                  withOutstanding,
+                  [
+                    { header: 'Name', accessor: 'name' },
+                    { header: 'Company', accessor: 'company' },
+                    { header: 'Email', accessor: 'email' },
+                    { header: 'Phone', accessor: 'phone' },
+                    { header: 'Outstanding Amount', accessor: 'outstanding_amount' },
+                    { header: 'Credit Limit', accessor: 'credit_limit' },
+                  ],
+                  `outstanding-clients-${new Date().toISOString().split('T')[0]}.csv`
+                );
+                toast({ title: "Export successful", description: `${withOutstanding.length} clients with outstanding exported` });
+              }}>
+                <DollarSign size={14} className="mr-2" />
+                Export Outstanding
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Clients Table */}

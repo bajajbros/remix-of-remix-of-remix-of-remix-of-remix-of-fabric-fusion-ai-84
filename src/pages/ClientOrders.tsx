@@ -10,6 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useClientOrders, ClientOrder, CreateOrderItemInput } from '@/hooks/useClientOrders';
 import { useClients } from '@/hooks/useClients';
+import { exportToCSV, formatDate, GST_RATES, GSTRate, calculateGST } from '@/lib/exportUtils';
+import { toast } from '@/hooks/use-toast';
 import {
   ShoppingCart,
   Plus,
@@ -29,9 +31,14 @@ import {
   AlertCircle,
   Factory,
   PackageCheck,
+  FileSpreadsheet,
+  Receipt,
 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-const statusConfig: Record<ClientOrder['status'], { icon: any; color: string; label: string }> = {
+import { LucideIcon } from 'lucide-react';
+
+const statusConfig: Record<ClientOrder['status'], { icon: LucideIcon; color: string; label: string }> = {
   pending: { icon: Clock, color: 'text-warning bg-warning/20', label: 'Pending' },
   confirmed: { icon: CheckCircle, color: 'text-accent bg-accent/20', label: 'Confirmed' },
   in_production: { icon: Factory, color: 'text-primary bg-primary/20', label: 'In Production' },
@@ -64,6 +71,7 @@ const ClientOrders = () => {
     priority: 'normal' as 'low' | 'normal' | 'high' | 'urgent',
     notes: '',
   });
+  const [gstRate, setGstRate] = useState<GSTRate>(18);
   const [orderItems, setOrderItems] = useState<CreateOrderItemInput[]>([]);
   const [currentItem, setCurrentItem] = useState({
     product_name: '',
@@ -98,8 +106,8 @@ const ClientOrders = () => {
 
   const calculateTotals = () => {
     const subtotal = orderItems.reduce((sum, item) => sum + item.total_price, 0);
-    const tax = subtotal * 0.18; // 18% GST
-    return { subtotal, tax, total: subtotal + tax };
+    const { tax, total } = calculateGST(subtotal, gstRate);
+    return { subtotal, tax, total };
   };
 
   const handleCreateOrder = async () => {
@@ -111,7 +119,7 @@ const ClientOrders = () => {
       client_id: newOrder.client_id,
       expected_delivery: newOrder.expected_delivery || undefined,
       priority: newOrder.priority,
-      notes: newOrder.notes || undefined,
+      notes: newOrder.notes ? `${newOrder.notes} [GST: ${gstRate}%]` : `[GST: ${gstRate}%]`,
       subtotal: totals.subtotal,
       tax_amount: totals.tax,
       total_amount: totals.total,
@@ -128,7 +136,50 @@ const ClientOrders = () => {
   const resetNewOrder = () => {
     setNewOrder({ client_id: '', expected_delivery: '', priority: 'normal', notes: '' });
     setOrderItems([]);
+    setGstRate(18);
     setCurrentItem({ product_name: '', sku: '', quantity: 1, unit: 'pcs', unit_price: 0 });
+  };
+
+  const handleExportOrders = (type: 'all' | 'pending' | 'unpaid') => {
+    let dataToExport = filteredOrders;
+    let filename = 'orders';
+    
+    if (type === 'pending') {
+      dataToExport = filteredOrders.filter(o => ['pending', 'confirmed', 'in_production'].includes(o.status));
+      filename = 'pending-orders';
+    } else if (type === 'unpaid') {
+      dataToExport = filteredOrders.filter(o => o.payment_status !== 'paid');
+      filename = 'unpaid-orders';
+    }
+
+    if (dataToExport.length === 0) {
+      toast({ title: "No data to export", description: "No orders match the criteria", variant: "destructive" });
+      return;
+    }
+
+    exportToCSV(
+      dataToExport,
+      [
+        { header: 'Order Number', accessor: 'order_number' },
+        { header: 'Client', accessor: (o: ClientOrder) => o.client?.company || o.client?.name || 'Unknown' },
+        { header: 'Client Email', accessor: (o: ClientOrder) => o.client?.email || '' },
+        { header: 'Client Phone', accessor: (o: ClientOrder) => o.client?.phone || '' },
+        { header: 'Order Date', accessor: (o: ClientOrder) => formatDate(o.order_date) },
+        { header: 'Expected Delivery', accessor: (o: ClientOrder) => formatDate(o.expected_delivery) },
+        { header: 'Status', accessor: 'status' },
+        { header: 'Priority', accessor: 'priority' },
+        { header: 'Items Count', accessor: (o: ClientOrder) => o.items?.length || 0 },
+        { header: 'Subtotal', accessor: 'subtotal' },
+        { header: 'Tax', accessor: 'tax_amount' },
+        { header: 'Discount', accessor: 'discount_amount' },
+        { header: 'Total', accessor: 'total_amount' },
+        { header: 'Paid Amount', accessor: 'paid_amount' },
+        { header: 'Payment Status', accessor: 'payment_status' },
+        { header: 'Notes', accessor: 'notes' },
+      ],
+      `${filename}-${new Date().toISOString().split('T')[0]}.csv`
+    );
+    toast({ title: "Export successful", description: `${dataToExport.length} orders exported` });
   };
 
   const formatCurrency = (amount: number) => {
@@ -256,13 +307,29 @@ const ClientOrders = () => {
                             </Button>
                           </div>
                         ))}
-                        <div className="pt-2 border-t space-y-1">
+                        <div className="pt-2 border-t space-y-2">
                           <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">Subtotal</span>
                             <span>₹{calculateTotals().subtotal.toLocaleString()}</span>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">GST (18%)</span>
+                          <div className="flex justify-between items-center text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">GST Rate</span>
+                              <Select value={gstRate.toString()} onValueChange={(v) => setGstRate(Number(v) as GSTRate)}>
+                                <SelectTrigger className="w-32 h-7 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {GST_RATES.map(rate => (
+                                    <SelectItem key={rate.value} value={rate.value.toString()}>
+                                      <div>
+                                        <span className="font-medium">{rate.label}</span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                             <span>₹{calculateTotals().tax.toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between font-bold">
@@ -371,10 +438,28 @@ const ClientOrders = () => {
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2">
-            <Download size={14} />
-            Export
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download size={14} />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExportOrders('all')}>
+                <FileSpreadsheet size={14} className="mr-2" />
+                Export All Orders
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportOrders('pending')}>
+                <Clock size={14} className="mr-2" />
+                Export Pending Orders
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportOrders('unpaid')}>
+                <Receipt size={14} className="mr-2" />
+                Export Unpaid Orders
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Orders Table */}
