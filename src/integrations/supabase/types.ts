@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      agreements: {
+        Row: {
+          agreement_number: string
+          client_id: string
+          created_at: string
+          end_date: string
+          id: string
+          notes: string | null
+          signatory_client: string | null
+          signatory_company: string | null
+          signed_date: string | null
+          start_date: string
+          status: string
+          terms: string[] | null
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+          value: number | null
+        }
+        Insert: {
+          agreement_number: string
+          client_id: string
+          created_at?: string
+          end_date: string
+          id?: string
+          notes?: string | null
+          signatory_client?: string | null
+          signatory_company?: string | null
+          signed_date?: string | null
+          start_date?: string
+          status?: string
+          terms?: string[] | null
+          title: string
+          type?: string
+          updated_at?: string
+          user_id: string
+          value?: number | null
+        }
+        Update: {
+          agreement_number?: string
+          client_id?: string
+          created_at?: string
+          end_date?: string
+          id?: string
+          notes?: string | null
+          signatory_client?: string | null
+          signatory_company?: string | null
+          signed_date?: string | null
+          start_date?: string
+          status?: string
+          terms?: string[] | null
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agreements_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_settings: {
         Row: {
           id: string
@@ -175,6 +243,119 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_items: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          quantity: number
+          rate: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          quantity?: number
+          rate: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          quantity?: number
+          rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          cgst: number | null
+          client_id: string
+          created_at: string
+          due_date: string
+          id: string
+          igst: number | null
+          invoice_number: string
+          issue_date: string
+          notes: string | null
+          order_id: string | null
+          payment_date: string | null
+          sgst: number | null
+          status: string
+          subtotal: number
+          total: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cgst?: number | null
+          client_id: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          igst?: number | null
+          invoice_number: string
+          issue_date?: string
+          notes?: string | null
+          order_id?: string | null
+          payment_date?: string | null
+          sgst?: number | null
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cgst?: number | null
+          client_id?: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          igst?: number | null
+          invoice_number?: string
+          issue_date?: string
+          notes?: string | null
+          order_id?: string | null
+          payment_date?: string | null
+          sgst?: number | null
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "client_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -251,6 +432,109 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      quotation_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount: number | null
+          id: string
+          product: string
+          quantity: number
+          quotation_id: string
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount?: number | null
+          id?: string
+          product: string
+          quantity?: number
+          quotation_id: string
+          total: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount?: number | null
+          id?: string
+          product?: string
+          quantity?: number
+          quotation_id?: string
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_items_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotations: {
+        Row: {
+          client_id: string
+          created_at: string
+          discount: number | null
+          id: string
+          notes: string | null
+          quote_number: string
+          status: string
+          subtotal: number
+          tax: number | null
+          terms: string | null
+          total: number
+          updated_at: string
+          user_id: string
+          valid_until: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          discount?: number | null
+          id?: string
+          notes?: string | null
+          quote_number: string
+          status?: string
+          subtotal?: number
+          tax?: number | null
+          terms?: string | null
+          total?: number
+          updated_at?: string
+          user_id: string
+          valid_until?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          discount?: number | null
+          id?: string
+          notes?: string | null
+          quote_number?: string
+          status?: string
+          subtotal?: number
+          tax?: number | null
+          terms?: string | null
+          total?: number
+          updated_at?: string
+          user_id?: string
+          valid_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_activities: {
         Row: {
