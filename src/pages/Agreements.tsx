@@ -6,8 +6,17 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useAgreements, Agreement } from '@/hooks/useAgreements';
+import { useClients } from '@/hooks/useClients';
+import { exportToCSV, formatDate } from '@/lib/exportUtils';
+import { toast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import {
   FileText,
   Plus,
@@ -16,140 +25,18 @@ import {
   Eye,
   Download,
   Send,
+  Trash2,
   CheckCircle,
   Clock,
   AlertCircle,
   Edit,
   PenTool,
-  Calendar,
-  Building2,
+  Calendar as CalendarIcon,
   Shield,
+  RefreshCw,
+  Loader2,
+  FileSpreadsheet,
 } from 'lucide-react';
-
-interface Agreement {
-  id: string;
-  agreement_number: string;
-  title: string;
-  client_name: string;
-  type: 'nda' | 'sales' | 'service' | 'partnership' | 'supply';
-  status: 'draft' | 'pending_signature' | 'signed' | 'expired' | 'terminated';
-  start_date: string;
-  end_date: string;
-  value: number;
-  created_at: string;
-  terms: string[];
-  signatory_client: string;
-  signatory_company: string;
-  signed_date: string | null;
-}
-
-const mockAgreements: Agreement[] = [
-  {
-    id: '1',
-    agreement_number: 'AGR-2024-0001',
-    title: 'Annual Supply Agreement',
-    client_name: 'Textile Traders Pvt Ltd',
-    type: 'supply',
-    status: 'signed',
-    start_date: '2024-01-01',
-    end_date: '2024-12-31',
-    value: 5000000,
-    created_at: '2023-12-15',
-    terms: [
-      'Minimum order quantity: 100 units per month',
-      'Payment terms: Net 30 days',
-      'Quality standards as per ASTM specifications',
-      'Delivery within 15 working days of confirmed order',
-    ],
-    signatory_client: 'Rajesh Sharma',
-    signatory_company: 'Amit Verma',
-    signed_date: '2023-12-20',
-  },
-  {
-    id: '2',
-    agreement_number: 'AGR-2024-0002',
-    title: 'Non-Disclosure Agreement',
-    client_name: 'Fashion Hub Exports',
-    type: 'nda',
-    status: 'signed',
-    start_date: '2024-01-01',
-    end_date: '2026-12-31',
-    value: 0,
-    created_at: '2024-01-05',
-    terms: [
-      'Confidentiality period: 3 years',
-      'Covers all design and pricing information',
-      'No disclosure to third parties',
-      'Return of confidential materials upon termination',
-    ],
-    signatory_client: 'Priya Patel',
-    signatory_company: 'Amit Verma',
-    signed_date: '2024-01-08',
-  },
-  {
-    id: '3',
-    agreement_number: 'AGR-2024-0003',
-    title: 'Exclusive Distribution Agreement',
-    client_name: 'Saree Emporium',
-    type: 'partnership',
-    status: 'pending_signature',
-    start_date: '2024-02-01',
-    end_date: '2025-01-31',
-    value: 2500000,
-    created_at: '2024-01-10',
-    terms: [
-      'Exclusive distribution rights in UP & Bihar',
-      'Minimum purchase commitment: ₹25L annually',
-      'Marketing support provided',
-      'Territory protection guaranteed',
-    ],
-    signatory_client: 'Pending',
-    signatory_company: 'Amit Verma',
-    signed_date: null,
-  },
-  {
-    id: '4',
-    agreement_number: 'AGR-2024-0004',
-    title: 'Service Level Agreement',
-    client_name: 'Modern Fabrics LLC',
-    type: 'service',
-    status: 'signed',
-    start_date: '2024-01-15',
-    end_date: '2025-01-14',
-    value: 1000000,
-    created_at: '2024-01-12',
-    terms: [
-      'Response time: 24 hours for inquiries',
-      'Quality guarantee: 99% defect-free',
-      'Free replacements for defective items',
-      'Quarterly business reviews',
-    ],
-    signatory_client: 'Sarah Johnson',
-    signatory_company: 'Amit Verma',
-    signed_date: '2024-01-14',
-  },
-  {
-    id: '5',
-    agreement_number: 'AGR-2024-0005',
-    title: 'Sales Agreement - Bridal Collection',
-    client_name: 'Ethnic Wear House',
-    type: 'sales',
-    status: 'draft',
-    start_date: '2024-02-01',
-    end_date: '2024-07-31',
-    value: 800000,
-    created_at: '2024-01-14',
-    terms: [
-      'Custom bridal collection - 50 pieces',
-      'Design approval required before production',
-      '50% advance payment',
-      'Balance before delivery',
-    ],
-    signatory_client: 'Pending',
-    signatory_company: 'Pending',
-    signed_date: null,
-  },
-];
 
 const typeConfig = {
   nda: { label: 'NDA', color: 'bg-purple-500/20 text-purple-400' },
@@ -160,40 +47,129 @@ const typeConfig = {
 };
 
 const statusConfig = {
-  draft: { color: 'bg-muted text-muted-foreground', icon: Edit },
-  pending_signature: { color: 'bg-warning/20 text-warning', icon: PenTool },
-  signed: { color: 'bg-accent/20 text-accent', icon: CheckCircle },
-  expired: { color: 'bg-destructive/20 text-destructive', icon: AlertCircle },
-  terminated: { color: 'bg-muted text-muted-foreground', icon: Clock },
+  draft: { color: 'bg-muted text-muted-foreground', icon: Edit, label: 'Draft' },
+  pending_signature: { color: 'bg-warning/20 text-warning', icon: PenTool, label: 'Pending Signature' },
+  signed: { color: 'bg-accent/20 text-accent', icon: CheckCircle, label: 'Signed' },
+  expired: { color: 'bg-destructive/20 text-destructive', icon: AlertCircle, label: 'Expired' },
+  terminated: { color: 'bg-muted text-muted-foreground', icon: Clock, label: 'Terminated' },
 };
 
 const Agreements = () => {
-  const [agreements, setAgreements] = useState<Agreement[]>(mockAgreements);
+  const { agreements, loading, stats, createAgreement, updateAgreementStatus, deleteAgreement, fetchAgreements } = useAgreements();
+  const { clients } = useClients();
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedAgreement, setSelectedAgreement] = useState<Agreement | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Form state
+  const [newAgreement, setNewAgreement] = useState({
+    client_id: '',
+    title: '',
+    type: 'sales' as Agreement['type'],
+    value: 0,
+    terms: '',
+    signatory_client: '',
+    signatory_company: '',
+    notes: '',
+  });
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date());
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000));
 
   const filteredAgreements = agreements.filter(agreement => {
     const matchesSearch = 
       agreement.agreement_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       agreement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      agreement.client_name.toLowerCase().includes(searchTerm.toLowerCase());
+      (agreement.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     const matchesType = typeFilter === 'all' || agreement.type === typeFilter;
     const matchesStatus = statusFilter === 'all' || agreement.status === statusFilter;
     return matchesSearch && matchesType && matchesStatus;
   });
 
-  const handleSendForSignature = (id: string) => {
-    setAgreements(agreements.map(a => a.id === id ? { ...a, status: 'pending_signature' } : a));
-    toast.success('Agreement sent for digital signature');
+  const handleCreateAgreement = async () => {
+    if (!newAgreement.client_id || !newAgreement.title || !endDate) return;
+    setIsSaving(true);
+    
+    const termsArray = newAgreement.terms.split('\n').filter(t => t.trim());
+    
+    const result = await createAgreement({
+      client_id: newAgreement.client_id,
+      title: newAgreement.title,
+      type: newAgreement.type,
+      start_date: startDate ? format(startDate, 'yyyy-MM-dd') : undefined,
+      end_date: format(endDate, 'yyyy-MM-dd'),
+      value: newAgreement.value,
+      terms: termsArray.length > 0 ? termsArray : undefined,
+      signatory_client: newAgreement.signatory_client || undefined,
+      signatory_company: newAgreement.signatory_company || undefined,
+      notes: newAgreement.notes || undefined,
+    });
+
+    setIsSaving(false);
+    if (result) {
+      setIsCreateDialogOpen(false);
+      resetForm();
+    }
   };
 
-  const activeAgreements = agreements.filter(a => a.status === 'signed').length;
-  const pendingSignatures = agreements.filter(a => a.status === 'pending_signature').length;
-  const totalValue = agreements.filter(a => a.status === 'signed').reduce((sum, a) => sum + a.value, 0);
+  const resetForm = () => {
+    setNewAgreement({
+      client_id: '',
+      title: '',
+      type: 'sales',
+      value: 0,
+      terms: '',
+      signatory_client: '',
+      signatory_company: '',
+      notes: '',
+    });
+    setStartDate(new Date());
+    setEndDate(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000));
+  };
+
+  const handleExport = (type: 'all' | 'active' | 'pending') => {
+    let dataToExport = filteredAgreements;
+    let filename = 'agreements';
+    
+    if (type === 'active') {
+      dataToExport = filteredAgreements.filter(a => a.status === 'signed');
+      filename = 'active-agreements';
+    } else if (type === 'pending') {
+      dataToExport = filteredAgreements.filter(a => a.status === 'draft' || a.status === 'pending_signature');
+      filename = 'pending-agreements';
+    }
+
+    if (dataToExport.length === 0) {
+      toast({ title: "No data to export", variant: "destructive" });
+      return;
+    }
+
+    exportToCSV(
+      dataToExport,
+      [
+        { header: 'Agreement Number', accessor: 'agreement_number' },
+        { header: 'Title', accessor: 'title' },
+        { header: 'Client', accessor: (a: Agreement) => a.client?.company || a.client?.name || 'Unknown' },
+        { header: 'Type', accessor: 'type' },
+        { header: 'Start Date', accessor: (a: Agreement) => formatDate(a.start_date) },
+        { header: 'End Date', accessor: (a: Agreement) => formatDate(a.end_date) },
+        { header: 'Value', accessor: 'value' },
+        { header: 'Status', accessor: 'status' },
+        { header: 'Signed Date', accessor: (a: Agreement) => formatDate(a.signed_date) },
+      ],
+      `${filename}-${new Date().toISOString().split('T')[0]}.csv`
+    );
+    toast({ title: "Export successful", description: `${dataToExport.length} agreements exported` });
+  };
+
+  const formatCurrency = (amount: number) => {
+    if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
+    if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
+    return `₹${amount.toFixed(0)}`;
+  };
 
   return (
     <DashboardLayout>
@@ -208,84 +184,167 @@ const Agreements = () => {
               Manage client agreements, contracts, and terms
             </p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus size={14} />
-                New Agreement
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create Agreement</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Agreement Title</Label>
-                  <Input placeholder="e.g., Annual Supply Agreement" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+          <div className="flex gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <FileSpreadsheet size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleExport('all')}>Export All</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('active')}>Export Active</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('pending')}>Export Pending</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="outline" size="icon" onClick={fetchAgreements} disabled={loading}>
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </Button>
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus size={14} />
+                  New Agreement
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create Agreement</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label>Client</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select client" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">Textile Traders Pvt Ltd</SelectItem>
-                        <SelectItem value="2">Fashion Hub Exports</SelectItem>
-                        <SelectItem value="3">Saree Emporium</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Agreement Title *</Label>
+                    <Input 
+                      placeholder="e.g., Annual Supply Agreement"
+                      value={newAgreement.title}
+                      onChange={(e) => setNewAgreement({ ...newAgreement, title: e.target.value })}
+                    />
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Client *</Label>
+                      <Select value={newAgreement.client_id} onValueChange={(v) => setNewAgreement({ ...newAgreement, client_id: v })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select client" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.map(client => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.company || client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Agreement Type</Label>
+                      <Select value={newAgreement.type} onValueChange={(v: Agreement['type']) => setNewAgreement({ ...newAgreement, type: v })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="nda">Non-Disclosure Agreement</SelectItem>
+                          <SelectItem value="sales">Sales Agreement</SelectItem>
+                          <SelectItem value="service">Service Agreement</SelectItem>
+                          <SelectItem value="partnership">Partnership Agreement</SelectItem>
+                          <SelectItem value="supply">Supply Agreement</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Start Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {startDate ? format(startDate, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>End Date *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {endDate ? format(endDate, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label>Agreement Type</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nda">Non-Disclosure Agreement</SelectItem>
-                        <SelectItem value="sales">Sales Agreement</SelectItem>
-                        <SelectItem value="service">Service Agreement</SelectItem>
-                        <SelectItem value="partnership">Partnership Agreement</SelectItem>
-                        <SelectItem value="supply">Supply Agreement</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Agreement Value (₹)</Label>
+                    <Input 
+                      type="number" 
+                      placeholder="0 for NDA"
+                      value={newAgreement.value || ''}
+                      onChange={(e) => setNewAgreement({ ...newAgreement, value: Number(e.target.value) })}
+                    />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+
                   <div className="space-y-2">
-                    <Label>Start Date</Label>
-                    <Input type="date" />
+                    <Label>Terms & Conditions</Label>
+                    <Textarea 
+                      placeholder="Enter key terms, one per line..."
+                      value={newAgreement.terms}
+                      onChange={(e) => setNewAgreement({ ...newAgreement, terms: e.target.value })}
+                      rows={5}
+                    />
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Client Signatory</Label>
+                      <Input 
+                        placeholder="Name of client representative"
+                        value={newAgreement.signatory_client}
+                        onChange={(e) => setNewAgreement({ ...newAgreement, signatory_client: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Company Signatory</Label>
+                      <Input 
+                        placeholder="Name of company representative"
+                        value={newAgreement.signatory_company}
+                        onChange={(e) => setNewAgreement({ ...newAgreement, signatory_company: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label>End Date</Label>
-                    <Input type="date" />
+                    <Label>Notes</Label>
+                    <Textarea 
+                      placeholder="Internal notes..."
+                      value={newAgreement.notes}
+                      onChange={(e) => setNewAgreement({ ...newAgreement, notes: e.target.value })}
+                      rows={2}
+                    />
                   </div>
+
+                  <Button 
+                    onClick={handleCreateAgreement} 
+                    className="w-full" 
+                    disabled={isSaving || !newAgreement.client_id || !newAgreement.title || !endDate}
+                  >
+                    {isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</> : 'Create Agreement'}
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label>Agreement Value (₹)</Label>
-                  <Input type="number" placeholder="0 for NDA" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Terms & Conditions</Label>
-                  <Textarea placeholder="Enter key terms, one per line..." rows={5} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Client Signatory</Label>
-                    <Input placeholder="Name of client representative" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Company Signatory</Label>
-                    <Input placeholder="Name of company representative" />
-                  </div>
-                </div>
-                <Button className="w-full">Create Agreement</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Stats */}
@@ -296,7 +355,7 @@ const Agreements = () => {
                 <FileText size={16} className="text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{agreements.length}</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
                 <p className="text-xs text-muted-foreground">Total Agreements</p>
               </div>
             </div>
@@ -307,7 +366,7 @@ const Agreements = () => {
                 <CheckCircle size={16} className="text-accent" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{activeAgreements}</p>
+                <p className="text-2xl font-bold">{stats.signed}</p>
                 <p className="text-xs text-muted-foreground">Active</p>
               </div>
             </div>
@@ -318,7 +377,7 @@ const Agreements = () => {
                 <PenTool size={16} className="text-warning" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{pendingSignatures}</p>
+                <p className="text-2xl font-bold">{stats.pending}</p>
                 <p className="text-xs text-muted-foreground">Pending Signature</p>
               </div>
             </div>
@@ -329,7 +388,7 @@ const Agreements = () => {
                 <Shield size={16} className="text-secondary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">₹{(totalValue / 100000).toFixed(1)}L</p>
+                <p className="text-2xl font-bold">{formatCurrency(stats.totalValue)}</p>
                 <p className="text-xs text-muted-foreground">Contract Value</p>
               </div>
             </div>
@@ -376,75 +435,86 @@ const Agreements = () => {
 
         {/* Agreements Table */}
         <div className="glass-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Agreement #</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAgreements.map((agreement) => {
-                const StatusIcon = statusConfig[agreement.status].icon;
-                return (
-                  <TableRow key={agreement.id}>
-                    <TableCell className="font-mono font-medium">{agreement.agreement_number}</TableCell>
-                    <TableCell>{agreement.title}</TableCell>
-                    <TableCell>{agreement.client_name}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${typeConfig[agreement.type].color}`}>
-                        {typeConfig[agreement.type].label}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <p>{agreement.start_date}</p>
-                        <p className="text-muted-foreground">to {agreement.end_date}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {agreement.value > 0 ? `₹${(agreement.value / 100000).toFixed(1)}L` : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${statusConfig[agreement.status].color}`}>
-                        <StatusIcon size={12} />
-                        {agreement.status.replace('_', ' ')}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => { setSelectedAgreement(agreement); setIsViewDialogOpen(true); }}
-                        >
-                          <Eye size={14} />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Download size={14} />
-                        </Button>
-                        {agreement.status === 'draft' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSendForSignature(agreement.id)}
-                          >
-                            <Send size={14} />
+          {loading ? (
+            <div className="p-6 space-y-4">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : filteredAgreements.length === 0 ? (
+            <div className="p-12 text-center text-muted-foreground">
+              <FileText size={48} className="mx-auto mb-4 opacity-50" />
+              <p>No agreements found</p>
+              <p className="text-sm">Create your first agreement to get started</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agreement #</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Period</TableHead>
+                  <TableHead>Value</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAgreements.map((agreement) => {
+                  const StatusIcon = statusConfig[agreement.status]?.icon || Edit;
+                  return (
+                    <TableRow key={agreement.id}>
+                      <TableCell className="font-mono font-medium">{agreement.agreement_number}</TableCell>
+                      <TableCell>{agreement.title}</TableCell>
+                      <TableCell>{agreement.client?.company || agreement.client?.name}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${typeConfig[agreement.type]?.color || ''}`}>
+                          {typeConfig[agreement.type]?.label || agreement.type}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <p>{formatDate(agreement.start_date)}</p>
+                          <p className="text-muted-foreground">to {formatDate(agreement.end_date)}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {agreement.value > 0 ? formatCurrency(agreement.value) : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${statusConfig[agreement.status]?.color || ''}`}>
+                          <StatusIcon size={12} />
+                          {statusConfig[agreement.status]?.label || agreement.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => { setSelectedAgreement(agreement); setIsViewDialogOpen(true); }}>
+                            <Eye size={14} />
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                          {agreement.status === 'draft' && (
+                            <Button variant="ghost" size="sm" onClick={() => updateAgreementStatus(agreement.id, 'pending_signature')}>
+                              <Send size={14} />
+                            </Button>
+                          )}
+                          {agreement.status === 'pending_signature' && (
+                            <Button variant="ghost" size="sm" onClick={() => updateAgreementStatus(agreement.id, 'signed')}>
+                              <CheckCircle size={14} />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => deleteAgreement(agreement.id)}>
+                            <Trash2 size={14} className="text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </div>
 
         {/* View Agreement Dialog */}
@@ -458,93 +528,83 @@ const Agreements = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="text-xl font-bold">{selectedAgreement.title}</h3>
-                    <p className="font-mono text-muted-foreground">{selectedAgreement.agreement_number}</p>
+                    <p className="font-mono text-sm text-muted-foreground">{selectedAgreement.agreement_number}</p>
                   </div>
-                  <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium ${statusConfig[selectedAgreement.status].color}`}>
-                    {selectedAgreement.status.replace('_', ' ')}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Client</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Building2 size={14} className="text-primary" />
-                        <span className="font-medium">{selectedAgreement.client_name}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Agreement Type</p>
-                      <span className={`inline-block mt-1 px-2 py-1 rounded text-xs font-medium ${typeConfig[selectedAgreement.type].color}`}>
-                        {typeConfig[selectedAgreement.type].label}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Agreement Period</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Calendar size={14} className="text-primary" />
-                        <span>{selectedAgreement.start_date} to {selectedAgreement.end_date}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Contract Value</p>
-                      <p className="font-bold text-lg">
-                        {selectedAgreement.value > 0 ? `₹${selectedAgreement.value.toLocaleString()}` : 'N/A'}
-                      </p>
-                    </div>
+                  <div className="flex gap-2">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${typeConfig[selectedAgreement.type]?.color || ''}`}>
+                      {typeConfig[selectedAgreement.type]?.label || selectedAgreement.type}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${statusConfig[selectedAgreement.status]?.color || ''}`}>
+                      {statusConfig[selectedAgreement.status]?.label || selectedAgreement.status}
+                    </span>
                   </div>
                 </div>
 
-                <div className="p-4 bg-muted/30 rounded-lg">
-                  <h4 className="font-semibold mb-3 flex items-center gap-2">
-                    <FileText size={14} className="text-primary" />
-                    Terms & Conditions
-                  </h4>
-                  <ul className="space-y-2">
-                    {selectedAgreement.terms.map((term, index) => (
-                      <li key={index} className="flex items-start gap-2 text-sm">
-                        <CheckCircle size={14} className="text-accent mt-0.5 shrink-0" />
-                        <span>{term}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
+                <div className="grid grid-cols-2 gap-4 text-sm border-t pt-4">
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Client Signatory</p>
-                    <p className="font-medium">{selectedAgreement.signatory_client}</p>
-                    {selectedAgreement.signed_date && (
-                      <p className="text-xs text-muted-foreground">Signed: {selectedAgreement.signed_date}</p>
-                    )}
+                    <p className="text-muted-foreground">Client</p>
+                    <p className="font-medium">{selectedAgreement.client?.company || selectedAgreement.client?.name}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Company Signatory</p>
-                    <p className="font-medium">{selectedAgreement.signatory_company}</p>
-                    {selectedAgreement.signed_date && (
-                      <p className="text-xs text-muted-foreground">Signed: {selectedAgreement.signed_date}</p>
-                    )}
+                    <p className="text-muted-foreground">Contract Value</p>
+                    <p className="font-medium">{selectedAgreement.value > 0 ? formatCurrency(selectedAgreement.value) : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Start Date</p>
+                    <p className="font-medium">{formatDate(selectedAgreement.start_date)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">End Date</p>
+                    <p className="font-medium">{formatDate(selectedAgreement.end_date)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Client Signatory</p>
+                    <p className="font-medium">{selectedAgreement.signatory_client || 'Pending'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Company Signatory</p>
+                    <p className="font-medium">{selectedAgreement.signatory_company || 'Pending'}</p>
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button className="flex-1 gap-2">
-                    <Download size={14} />
-                    Download PDF
+                {selectedAgreement.terms && selectedAgreement.terms.length > 0 && (
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium mb-2">Terms & Conditions</p>
+                    <ul className="space-y-1">
+                      {selectedAgreement.terms.map((term, index) => (
+                        <li key={index} className="text-sm flex items-start gap-2">
+                          <span className="text-primary">•</span>
+                          {term}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {selectedAgreement.signed_date && (
+                  <div className="bg-accent/10 p-4 rounded-lg flex items-center gap-3">
+                    <CheckCircle className="text-accent" size={20} />
+                    <div>
+                      <p className="font-medium">Agreement Signed</p>
+                      <p className="text-sm text-muted-foreground">Signed on {formatDate(selectedAgreement.signed_date)}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-4 border-t">
+                  <Button variant="outline" className="flex-1 gap-2">
+                    <Download size={14} /> Download PDF
                   </Button>
                   {selectedAgreement.status === 'draft' && (
-                    <Button variant="outline" className="flex-1 gap-2" onClick={() => handleSendForSignature(selectedAgreement.id)}>
-                      <PenTool size={14} />
-                      Request Signature
+                    <Button className="flex-1 gap-2" onClick={() => { updateAgreementStatus(selectedAgreement.id, 'pending_signature'); setIsViewDialogOpen(false); }}>
+                      <Send size={14} /> Send for Signature
                     </Button>
                   )}
-                  <Button variant="outline" className="flex-1 gap-2">
-                    <Edit size={14} />
-                    Edit
-                  </Button>
+                  {selectedAgreement.status === 'pending_signature' && (
+                    <Button className="flex-1 gap-2" onClick={() => { updateAgreementStatus(selectedAgreement.id, 'signed'); setIsViewDialogOpen(false); }}>
+                      <CheckCircle size={14} /> Mark as Signed
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

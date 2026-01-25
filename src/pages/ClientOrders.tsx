@@ -8,10 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useClientOrders, ClientOrder, CreateOrderItemInput } from '@/hooks/useClientOrders';
 import { useClients } from '@/hooks/useClients';
 import { exportToCSV, formatDate, GST_RATES, GSTRate, calculateGST } from '@/lib/exportUtils';
 import { toast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import {
   ShoppingCart,
   Plus,
@@ -33,6 +37,7 @@ import {
   PackageCheck,
   FileSpreadsheet,
   Receipt,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -67,10 +72,10 @@ const ClientOrders = () => {
   // New order form state
   const [newOrder, setNewOrder] = useState({
     client_id: '',
-    expected_delivery: '',
     priority: 'normal' as 'low' | 'normal' | 'high' | 'urgent',
     notes: '',
   });
+  const [expectedDelivery, setExpectedDelivery] = useState<Date | undefined>();
   const [gstRate, setGstRate] = useState<GSTRate>(18);
   const [orderItems, setOrderItems] = useState<CreateOrderItemInput[]>([]);
   const [currentItem, setCurrentItem] = useState({
@@ -117,7 +122,7 @@ const ClientOrders = () => {
     const totals = calculateTotals();
     const result = await createOrder({
       client_id: newOrder.client_id,
-      expected_delivery: newOrder.expected_delivery || undefined,
+      expected_delivery: expectedDelivery ? format(expectedDelivery, 'yyyy-MM-dd') : undefined,
       priority: newOrder.priority,
       notes: newOrder.notes ? `${newOrder.notes} [GST: ${gstRate}%]` : `[GST: ${gstRate}%]`,
       subtotal: totals.subtotal,
@@ -134,7 +139,8 @@ const ClientOrders = () => {
   };
 
   const resetNewOrder = () => {
-    setNewOrder({ client_id: '', expected_delivery: '', priority: 'normal', notes: '' });
+    setNewOrder({ client_id: '', priority: 'normal', notes: '' });
+    setExpectedDelivery(undefined);
     setOrderItems([]);
     setGstRate(18);
     setCurrentItem({ product_name: '', sku: '', quantity: 1, unit: 'pcs', unit_price: 0 });
@@ -239,11 +245,17 @@ const ClientOrders = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>Expected Delivery</Label>
-                      <Input 
-                        type="date" 
-                        value={newOrder.expected_delivery}
-                        onChange={(e) => setNewOrder({ ...newOrder, expected_delivery: e.target.value })}
-                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !expectedDelivery && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {expectedDelivery ? format(expectedDelivery, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={expectedDelivery} onSelect={setExpectedDelivery} initialFocus />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
                   
