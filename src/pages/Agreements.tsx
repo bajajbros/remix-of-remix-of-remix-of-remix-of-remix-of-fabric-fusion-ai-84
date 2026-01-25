@@ -14,6 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useAgreements, Agreement } from '@/hooks/useAgreements';
 import { useClients } from '@/hooks/useClients';
 import { exportToCSV, formatDate } from '@/lib/exportUtils';
+import { generateAgreementPDF } from '@/lib/pdfUtils';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -592,7 +593,29 @@ const Agreements = () => {
                 )}
 
                 <div className="flex gap-2 pt-4 border-t">
-                  <Button variant="outline" className="flex-1 gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-2"
+                    onClick={() => {
+                      if (selectedAgreement) {
+                        generateAgreementPDF({
+                          agreement_number: selectedAgreement.agreement_number,
+                          title: selectedAgreement.title,
+                          type: selectedAgreement.type,
+                          start_date: selectedAgreement.start_date,
+                          end_date: selectedAgreement.end_date,
+                          value: selectedAgreement.value,
+                          client: selectedAgreement.client || {},
+                          terms: selectedAgreement.terms || undefined,
+                          signatory_client: selectedAgreement.signatory_client || undefined,
+                          signatory_company: selectedAgreement.signatory_company || undefined,
+                          signed_date: selectedAgreement.signed_date || undefined,
+                          notes: selectedAgreement.notes || undefined,
+                        });
+                        toast({ title: 'PDF Downloaded', description: 'Agreement PDF has been generated successfully' });
+                      }
+                    }}
+                  >
                     <Download size={14} /> Download PDF
                   </Button>
                   {selectedAgreement.status === 'draft' && (

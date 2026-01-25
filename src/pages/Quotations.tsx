@@ -14,6 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useQuotations, Quotation, CreateQuotationItemInput } from '@/hooks/useQuotations';
 import { useClients } from '@/hooks/useClients';
 import { exportToCSV, formatDate, GST_RATES, GSTRate, calculateGST } from '@/lib/exportUtils';
+import { generateQuotationPDF } from '@/lib/pdfUtils';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -609,7 +610,28 @@ const Quotations = () => {
                 )}
 
                 <div className="flex gap-2 pt-4 border-t">
-                  <Button variant="outline" className="flex-1 gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-2"
+                    onClick={() => {
+                      if (selectedQuote) {
+                        generateQuotationPDF({
+                          quote_number: selectedQuote.quote_number,
+                          created_at: selectedQuote.created_at,
+                          valid_until: selectedQuote.valid_until,
+                          client: selectedQuote.client || {},
+                          items: selectedQuote.items || [],
+                          subtotal: selectedQuote.subtotal,
+                          tax: selectedQuote.tax,
+                          discount: selectedQuote.discount,
+                          total: selectedQuote.total,
+                          terms: selectedQuote.terms || undefined,
+                          notes: selectedQuote.notes || undefined,
+                        });
+                        toast({ title: 'PDF Downloaded', description: 'Quotation PDF has been generated successfully' });
+                      }
+                    }}
+                  >
                     <Download size={14} /> Download PDF
                   </Button>
                   {selectedQuote.status === 'draft' && (

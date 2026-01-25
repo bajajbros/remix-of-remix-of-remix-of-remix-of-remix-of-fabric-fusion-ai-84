@@ -15,6 +15,7 @@ import { useInvoices, Invoice, CreateInvoiceItemInput } from '@/hooks/useInvoice
 import { useClients } from '@/hooks/useClients';
 import { useClientOrders } from '@/hooks/useClientOrders';
 import { exportToCSV, formatDate, GST_RATES, GSTRate, calculateGST } from '@/lib/exportUtils';
+import { generateInvoicePDF } from '@/lib/pdfUtils';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -653,7 +654,29 @@ const Invoices = () => {
                 </div>
 
                 <div className="flex gap-2 pt-4 border-t">
-                  <Button variant="outline" className="flex-1 gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-2"
+                    onClick={() => {
+                      if (selectedInvoice) {
+                        generateInvoicePDF({
+                          invoice_number: selectedInvoice.invoice_number,
+                          issue_date: selectedInvoice.issue_date,
+                          due_date: selectedInvoice.due_date,
+                          client: selectedInvoice.client || {},
+                          items: selectedInvoice.items || [],
+                          subtotal: selectedInvoice.subtotal,
+                          cgst: selectedInvoice.cgst,
+                          sgst: selectedInvoice.sgst,
+                          igst: selectedInvoice.igst,
+                          total: selectedInvoice.total,
+                          notes: selectedInvoice.notes || undefined,
+                          payment_date: selectedInvoice.payment_date || undefined,
+                        });
+                        toast({ title: 'PDF Downloaded', description: 'Invoice PDF has been generated successfully' });
+                      }
+                    }}
+                  >
                     <Download size={14} /> Download PDF
                   </Button>
                   {selectedInvoice.status === 'draft' && (
