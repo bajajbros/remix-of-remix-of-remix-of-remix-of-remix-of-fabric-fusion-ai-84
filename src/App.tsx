@@ -40,6 +40,7 @@ import Quotations from "./pages/Quotations";
 import Agreements from "./pages/Agreements";
 import DigitalSignatures from "./pages/DigitalSignatures";
 import ClientPortal from "./pages/ClientPortal";
+import Leads from "./pages/Leads";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Refund from "./pages/Refund";
@@ -86,6 +87,7 @@ const App = () => (
               <Route path="/chatbot" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
               <Route path="/design-generator" element={<ProtectedRoute><DesignGenerator /></ProtectedRoute>} />
               <Route path="/b2b-agent" element={<ProtectedRoute><B2BAgent /></ProtectedRoute>} />
+              <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
               
               {/* Client Services */}
               <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />

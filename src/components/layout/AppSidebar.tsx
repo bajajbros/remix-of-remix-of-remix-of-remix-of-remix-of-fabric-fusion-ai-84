@@ -36,6 +36,7 @@ import {
   Handshake,
   LogOut,
   User,
+  Sparkles,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -101,6 +102,7 @@ const menuGroups: MenuGroup[] = [
     icon: Brain,
     defaultOpen: true,
     items: [
+      { title: 'Lead Generation', url: '/leads', icon: Sparkles, badge: 'New', badgeColor: 'accent' },
       { title: 'Sales Forecast', url: '/sales-forecast', icon: TrendingUp },
       { title: 'Demand Prediction', url: '/demand-prediction', icon: LineChart },
       { title: 'Product Recommendations', url: '/recommendations', icon: Target },
