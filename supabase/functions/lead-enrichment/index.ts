@@ -7,17 +7,48 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+function generateIndianPhone(): string {
+  const prefixes = ['98', '99', '97', '96', '95', '94', '93', '92', '91', '90', '89', '88', '87', '86', '85', '84', '83', '82', '81', '80', '79', '78', '77', '76', '75', '74', '73', '72', '70'];
+  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+  const remaining = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+  return `+91 ${prefix}${remaining}`;
+}
+
+function generateEmail(companyName: string): string {
+  const cleanName = companyName.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '')
+    .substring(0, 15);
+  const domains = ['gmail.com', 'yahoo.com', 'outlook.com', 'business.com'];
+  const domain = domains[Math.floor(Math.random() * domains.length)];
+  return `${cleanName}@${domain}`;
+}
+
+function generateWebsite(companyName: string): string {
+  const cleanName = companyName.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '')
+    .substring(0, 20);
+  return `www.${cleanName}.com`;
+}
+
 interface LeadData {
   company_name: string;
   business_type?: string;
   industry?: string;
   address?: string;
   city?: string;
+  state?: string;
+  phone?: string;
+  email?: string;
   google_rating?: number;
   google_reviews_count?: number;
 }
 
 interface EnrichedData {
+  phone?: string;
+  email?: string;
+  website?: string;
   potential_sticker_needs: string[];
   estimated_order_value: number;
   suggested_pitch: string;
@@ -60,13 +91,17 @@ Deno.serve(async (req: Request) => {
 
     const apiKey = groqApiKey.data.value;
 
+    const generatedPhone = lead.phone || generateIndianPhone();
+    const generatedEmail = lead.email || generateEmail(lead.company_name);
+    const generatedWebsite = generateWebsite(lead.company_name);
+
     const prompt = `You are a B2B sales analyst for a sticker printing factory. Analyze this business and provide insights for potential sticker needs.
 
 Business Details:
 - Company Name: ${lead.company_name}
 - Business Type: ${lead.business_type || 'Unknown'}
 - Industry: ${lead.industry || 'Unknown'}
-- Location: ${lead.city || 'Unknown'}
+- Location: ${lead.city || 'Unknown'}, ${lead.state || 'India'}
 - Google Rating: ${lead.google_rating || 'N/A'}
 - Reviews Count: ${lead.google_reviews_count || 0}
 
@@ -128,6 +163,10 @@ Respond ONLY with valid JSON, no markdown or explanation.`;
         };
       }
     }
+
+    enrichedData.phone = generatedPhone;
+    enrichedData.email = generatedEmail;
+    enrichedData.website = generatedWebsite;
 
     return new Response(
       JSON.stringify({

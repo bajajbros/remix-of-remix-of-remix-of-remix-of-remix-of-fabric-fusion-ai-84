@@ -175,6 +175,9 @@ Deno.serve(async (req: Request) => {
         const finalLead = {
           ...scrapedLead,
           industry: industry,
+          phone: enrichedData.phone || scrapedLead.phone,
+          email: enrichedData.email || scrapedLead.email,
+          website: enrichedData.website,
           potential_sticker_needs: enrichedData.potential_sticker_needs,
           estimated_order_value: enrichedData.estimated_order_value,
           suggested_pitch: enrichedData.suggested_pitch,
