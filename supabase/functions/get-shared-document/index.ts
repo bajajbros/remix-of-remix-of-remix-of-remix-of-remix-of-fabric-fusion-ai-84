@@ -83,8 +83,20 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const data = result.data as any;
+    const responseData = {
+      ...data,
+      items: type === "invoice" ? data.invoice_items : type === "quotation" ? data.quotation_items : undefined,
+    };
+
+    if (type === "invoice") {
+      delete responseData.invoice_items;
+    } else if (type === "quotation") {
+      delete responseData.quotation_items;
+    }
+
     return new Response(
-      JSON.stringify(result.data),
+      JSON.stringify(responseData),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

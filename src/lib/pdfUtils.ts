@@ -129,164 +129,176 @@ const addFooter = (doc: jsPDF, pageNumber: number) => {
 };
 
 export const generateInvoicePDF = (data: InvoicePDFData) => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.width;
+  try {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
 
-  addHeader(doc, 'TAX INVOICE', `#${data.invoice_number}`);
+    addHeader(doc, 'TAX INVOICE', `#${data.invoice_number}`);
 
-  let yPos = 57;
+    let yPos = 57;
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('BILL TO:', 20, yPos);
-  doc.text('INVOICE DETAILS:', 115, yPos);
-
-  yPos += 6;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-
-  const clientName = data.client.company || data.client.name || 'N/A';
-  doc.text(clientName, 20, yPos);
-  yPos += 5;
-
-  if (data.client.gst_number) {
-    doc.text(`GSTIN: ${data.client.gst_number}`, 20, yPos);
-    yPos += 5;
-  }
-
-  if (data.client.email) {
-    doc.text(data.client.email, 20, yPos);
-    yPos += 5;
-  }
-
-  if (data.client.phone) {
-    doc.text(data.client.phone, 20, yPos);
-    yPos += 5;
-  }
-
-  const clientAddress = [
-    data.client.address,
-    data.client.city,
-    data.client.state,
-    data.client.country
-  ].filter(Boolean).join(', ');
-
-  if (clientAddress) {
-    const addressLines = doc.splitTextToSize(clientAddress, 85);
-    doc.text(addressLines, 20, yPos);
-  }
-
-  let detailsY = 63;
-  doc.text(`Invoice Number: ${data.invoice_number}`, 115, detailsY);
-  detailsY += 5;
-  doc.text(`Issue Date: ${formatDate(data.issue_date)}`, 115, detailsY);
-  detailsY += 5;
-  doc.text(`Due Date: ${formatDate(data.due_date)}`, 115, detailsY);
-  detailsY += 5;
-
-  if (data.payment_date) {
-    doc.text(`Paid On: ${formatDate(data.payment_date)}`, 115, detailsY);
-    detailsY += 5;
-  }
-
-  yPos = Math.max(yPos, detailsY) + 8;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('ITEM DETAILS', 20, yPos);
-  yPos += 5;
-
-  const tableData = data.items.map((item, index) => [
-    String(index + 1),
-    item.description,
-    String(item.quantity),
-    formatCurrency(item.rate),
-    formatCurrency(item.amount),
-  ]);
-
-  autoTable(doc, {
-    startY: yPos,
-    head: [['#', 'Description', 'Qty', 'Rate (₹)', 'Amount (₹)']],
-    body: tableData,
-    theme: 'grid',
-    styles: {
-      fontSize: 9,
-      cellPadding: 3,
-    },
-    headStyles: {
-      fillColor: [255, 255, 255],
-      textColor: [0, 0, 0],
-      fontStyle: 'bold',
-      lineWidth: 0.5,
-      lineColor: [0, 0, 0],
-    },
-    bodyStyles: {
-      textColor: [0, 0, 0],
-      lineWidth: 0.3,
-      lineColor: [128, 128, 128],
-    },
-    columnStyles: {
-      0: { cellWidth: 15, halign: 'center' },
-      1: { cellWidth: 85 },
-      2: { cellWidth: 20, halign: 'center' },
-      3: { cellWidth: 30, halign: 'right' },
-      4: { cellWidth: 35, halign: 'right' },
-    },
-    margin: { left: 20, right: 20 },
-  });
-
-  yPos = (doc as any).lastAutoTable.finalY + 10;
-
-  const summaryX = pageWidth - 75;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-
-  doc.text('Subtotal:', summaryX, yPos);
-  doc.text(formatCurrency(data.subtotal), summaryX + 50, yPos, { align: 'right' });
-  yPos += 5;
-
-  if (data.cgst > 0) {
-    doc.text('CGST:', summaryX, yPos);
-    doc.text(formatCurrency(data.cgst), summaryX + 50, yPos, { align: 'right' });
-    yPos += 5;
-
-    doc.text('SGST:', summaryX, yPos);
-    doc.text(formatCurrency(data.sgst), summaryX + 50, yPos, { align: 'right' });
-    yPos += 5;
-  }
-
-  if (data.igst > 0) {
-    doc.text('IGST:', summaryX, yPos);
-    doc.text(formatCurrency(data.igst), summaryX + 50, yPos, { align: 'right' });
-    yPos += 5;
-  }
-
-  doc.setLineWidth(0.3);
-  doc.line(summaryX, yPos, summaryX + 50, yPos);
-  yPos += 6;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('TOTAL (₹):', summaryX, yPos);
-  doc.text(formatCurrency(data.total), summaryX + 50, yPos, { align: 'right' });
-  yPos += 8;
-
-  if (data.notes) {
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('Notes:', 20, yPos);
-    yPos += 5;
+    doc.text('BILL TO:', 20, yPos);
+    doc.text('INVOICE DETAILS:', 115, yPos);
+
+    yPos += 6;
 
     doc.setFont('helvetica', 'normal');
-    const notesLines = doc.splitTextToSize(data.notes, pageWidth - 40);
-    doc.text(notesLines, 20, yPos);
+    doc.setFontSize(9);
+
+    const clientName = data.client.company || data.client.name || 'N/A';
+    doc.text(clientName, 20, yPos);
+    yPos += 5;
+
+    if (data.client.gst_number) {
+      doc.text(`GSTIN: ${data.client.gst_number}`, 20, yPos);
+      yPos += 5;
+    }
+
+    if (data.client.email) {
+      doc.text(data.client.email, 20, yPos);
+      yPos += 5;
+    }
+
+    if (data.client.phone) {
+      doc.text(data.client.phone, 20, yPos);
+      yPos += 5;
+    }
+
+    const clientAddress = [
+      data.client.address,
+      data.client.city,
+      data.client.state,
+      data.client.country
+    ].filter(Boolean).join(', ');
+
+    if (clientAddress) {
+      const addressLines = doc.splitTextToSize(clientAddress, 85);
+      doc.text(addressLines, 20, yPos);
+    }
+
+    let detailsY = 63;
+    doc.text(`Invoice Number: ${data.invoice_number}`, 115, detailsY);
+    detailsY += 5;
+    doc.text(`Issue Date: ${formatDate(data.issue_date)}`, 115, detailsY);
+    detailsY += 5;
+    doc.text(`Due Date: ${formatDate(data.due_date)}`, 115, detailsY);
+    detailsY += 5;
+
+    if (data.payment_date) {
+      doc.text(`Paid On: ${formatDate(data.payment_date)}`, 115, detailsY);
+      detailsY += 5;
+    }
+
+    yPos = Math.max(yPos, detailsY) + 8;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('ITEM DETAILS', 20, yPos);
+    yPos += 5;
+
+    const items = data.items || [];
+    if (items.length === 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text('No items', 20, yPos);
+      yPos += 10;
+    } else {
+      const tableData = items.map((item, index) => [
+        String(index + 1),
+        item.description,
+        String(item.quantity),
+        formatCurrency(item.rate),
+        formatCurrency(item.amount),
+      ]);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['#', 'Description', 'Qty', 'Rate (₹)', 'Amount (₹)']],
+        body: tableData,
+        theme: 'grid',
+        styles: {
+          fontSize: 9,
+          cellPadding: 3,
+        },
+        headStyles: {
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+          lineWidth: 0.5,
+          lineColor: [0, 0, 0],
+        },
+        bodyStyles: {
+          textColor: [0, 0, 0],
+          lineWidth: 0.3,
+          lineColor: [128, 128, 128],
+        },
+        columnStyles: {
+          0: { cellWidth: 15, halign: 'center' },
+          1: { cellWidth: 85 },
+          2: { cellWidth: 20, halign: 'center' },
+          3: { cellWidth: 30, halign: 'right' },
+          4: { cellWidth: 35, halign: 'right' },
+        },
+        margin: { left: 20, right: 20 },
+      });
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    const summaryX = pageWidth - 75;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+
+    doc.text('Subtotal:', summaryX, yPos);
+    doc.text(formatCurrency(data.subtotal), summaryX + 50, yPos, { align: 'right' });
+    yPos += 5;
+
+    if (data.cgst > 0) {
+      doc.text('CGST:', summaryX, yPos);
+      doc.text(formatCurrency(data.cgst), summaryX + 50, yPos, { align: 'right' });
+      yPos += 5;
+
+      doc.text('SGST:', summaryX, yPos);
+      doc.text(formatCurrency(data.sgst), summaryX + 50, yPos, { align: 'right' });
+      yPos += 5;
+    }
+
+    if (data.igst > 0) {
+      doc.text('IGST:', summaryX, yPos);
+      doc.text(formatCurrency(data.igst), summaryX + 50, yPos, { align: 'right' });
+      yPos += 5;
+    }
+
+    doc.setLineWidth(0.3);
+    doc.line(summaryX, yPos, summaryX + 50, yPos);
+    yPos += 6;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('TOTAL (₹):', summaryX, yPos);
+    doc.text(formatCurrency(data.total), summaryX + 50, yPos, { align: 'right' });
+    yPos += 8;
+
+    if (data.notes) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('Notes:', 20, yPos);
+      yPos += 5;
+
+      doc.setFont('helvetica', 'normal');
+      const notesLines = doc.splitTextToSize(data.notes, pageWidth - 40);
+      doc.text(notesLines, 20, yPos);
+    }
+
+    addFooter(doc, 1);
+
+    doc.save(`Invoice-${data.invoice_number}.pdf`);
+  } catch (err) {
+    console.error('PDF generation error:', err);
+    throw err;
   }
-
-  addFooter(doc, 1);
-
-  doc.save(`Invoice-${data.invoice_number}.pdf`);
 };
 
 export const generateAgreementPDF = (data: AgreementPDFData) => {
@@ -428,156 +440,163 @@ export const generateAgreementPDF = (data: AgreementPDFData) => {
 };
 
 export const generateQuotationPDF = (data: QuotationPDFData) => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.width;
+  try {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
 
-  addHeader(doc, 'QUOTATION', `#${data.quote_number}`);
+    addHeader(doc, 'QUOTATION', `#${data.quote_number}`);
 
-  let yPos = 57;
+    let yPos = 57;
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('QUOTE FOR:', 20, yPos);
-  doc.text('QUOTE DETAILS:', 115, yPos);
-
-  yPos += 6;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-
-  const clientName = data.client.company || data.client.name || 'N/A';
-  doc.text(clientName, 20, yPos);
-  yPos += 5;
-
-  if (data.client.email) {
-    doc.text(data.client.email, 20, yPos);
-    yPos += 5;
-  }
-
-  if (data.client.phone) {
-    doc.text(data.client.phone, 20, yPos);
-    yPos += 5;
-  }
-
-  if (data.client.address) {
-    const addressLines = doc.splitTextToSize(data.client.address, 85);
-    doc.text(addressLines, 20, yPos);
-  }
-
-  let detailsY = 63;
-  doc.text(`Quote Number: ${data.quote_number}`, 115, detailsY);
-  detailsY += 5;
-  doc.text(`Created On: ${formatDate(data.created_at)}`, 115, detailsY);
-  detailsY += 5;
-  doc.text(`Valid Until: ${formatDate(data.valid_until)}`, 115, detailsY);
-  detailsY += 5;
-
-  yPos = Math.max(yPos, detailsY) + 8;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('ITEMS & PRICING', 20, yPos);
-  yPos += 5;
-
-  const tableData = data.items.map((item, index) => {
-    const productText = item.product + (item.description ? `\n${item.description}` : '');
-    return [
-      String(index + 1),
-      productText,
-      String(item.quantity),
-      formatCurrency(item.unit_price),
-      item.discount ? `${item.discount}%` : '-',
-      formatCurrency(item.total),
-    ];
-  });
-
-  autoTable(doc, {
-    startY: yPos,
-    head: [['#', 'Product', 'Qty', 'Unit Price (₹)', 'Disc', 'Total (₹)']],
-    body: tableData,
-    theme: 'grid',
-    styles: {
-      fontSize: 9,
-      cellPadding: 3,
-    },
-    headStyles: {
-      fillColor: [255, 255, 255],
-      textColor: [0, 0, 0],
-      fontStyle: 'bold',
-      lineWidth: 0.5,
-      lineColor: [0, 0, 0],
-    },
-    bodyStyles: {
-      textColor: [0, 0, 0],
-      lineWidth: 0.3,
-      lineColor: [128, 128, 128],
-    },
-    columnStyles: {
-      0: { cellWidth: 12, halign: 'center' },
-      1: { cellWidth: 70 },
-      2: { cellWidth: 18, halign: 'center' },
-      3: { cellWidth: 30, halign: 'right' },
-      4: { cellWidth: 15, halign: 'center' },
-      5: { cellWidth: 35, halign: 'right' },
-    },
-    margin: { left: 20, right: 20 },
-  });
-
-  yPos = (doc as any).lastAutoTable.finalY + 10;
-
-  const summaryX = pageWidth - 75;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-
-  doc.text('Subtotal:', summaryX, yPos);
-  doc.text(formatCurrency(data.subtotal), summaryX + 50, yPos, { align: 'right' });
-  yPos += 5;
-
-  if (data.discount > 0) {
-    doc.text('Discount:', summaryX, yPos);
-    doc.text(`-${formatCurrency(data.discount)}`, summaryX + 50, yPos, { align: 'right' });
-    yPos += 5;
-  }
-
-  doc.text('Tax:', summaryX, yPos);
-  doc.text(formatCurrency(data.tax), summaryX + 50, yPos, { align: 'right' });
-  yPos += 5;
-
-  doc.setLineWidth(0.3);
-  doc.line(summaryX, yPos, summaryX + 50, yPos);
-  yPos += 6;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('TOTAL (₹):', summaryX, yPos);
-  doc.text(formatCurrency(data.total), summaryX + 50, yPos, { align: 'right' });
-  yPos += 8;
-
-  if (data.terms) {
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('Terms & Conditions:', 20, yPos);
-    yPos += 5;
+    doc.text('QUOTE FOR:', 20, yPos);
+    doc.text('QUOTE DETAILS:', 115, yPos);
+
+    yPos += 6;
 
     doc.setFont('helvetica', 'normal');
-    const termsLines = doc.splitTextToSize(data.terms, pageWidth - 40);
-    doc.text(termsLines, 20, yPos);
-    yPos += termsLines.length * 5 + 5;
-  }
-
-  if (data.notes) {
-    doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.text('Notes:', 20, yPos);
+
+    const clientName = data.client.company || data.client.name || 'N/A';
+    doc.text(clientName, 20, yPos);
     yPos += 5;
 
+    if (data.client.email) {
+      doc.text(data.client.email, 20, yPos);
+      yPos += 5;
+    }
+
+    if (data.client.phone) {
+      doc.text(data.client.phone, 20, yPos);
+      yPos += 5;
+    }
+
+    if (data.client.address) {
+      const addressLines = doc.splitTextToSize(data.client.address, 85);
+      doc.text(addressLines, 20, yPos);
+    }
+
+    let detailsY = 63;
+    doc.text(`Quote Number: ${data.quote_number}`, 115, detailsY);
+    detailsY += 5;
+    doc.text(`Created On: ${formatDate(data.created_at)}`, 115, detailsY);
+    detailsY += 5;
+    doc.text(`Valid Until: ${formatDate(data.valid_until)}`, 115, detailsY);
+    detailsY += 5;
+
+    yPos = Math.max(yPos, detailsY) + 8;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('ITEMS & PRICING', 20, yPos);
+    yPos += 5;
+
+    const items = data.items || [];
+    if (items.length > 0) {
+      const tableData = items.map((item, index) => {
+        const productText = item.product + (item.description ? `\n${item.description}` : '');
+        return [
+          String(index + 1),
+          productText,
+          String(item.quantity),
+          formatCurrency(item.unit_price),
+          item.discount ? `${item.discount}%` : '-',
+          formatCurrency(item.total),
+        ];
+      });
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['#', 'Product', 'Qty', 'Unit Price (₹)', 'Disc', 'Total (₹)']],
+        body: tableData,
+        theme: 'grid',
+        styles: {
+          fontSize: 9,
+          cellPadding: 3,
+        },
+        headStyles: {
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+          lineWidth: 0.5,
+          lineColor: [0, 0, 0],
+        },
+        bodyStyles: {
+          textColor: [0, 0, 0],
+          lineWidth: 0.3,
+          lineColor: [128, 128, 128],
+        },
+        columnStyles: {
+          0: { cellWidth: 12, halign: 'center' },
+          1: { cellWidth: 70 },
+          2: { cellWidth: 18, halign: 'center' },
+          3: { cellWidth: 30, halign: 'right' },
+          4: { cellWidth: 15, halign: 'center' },
+          5: { cellWidth: 35, halign: 'right' },
+        },
+        margin: { left: 20, right: 20 },
+      });
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    const summaryX = pageWidth - 75;
+
     doc.setFont('helvetica', 'normal');
-    const notesLines = doc.splitTextToSize(data.notes, pageWidth - 40);
-    doc.text(notesLines, 20, yPos);
+    doc.setFontSize(9);
+
+    doc.text('Subtotal:', summaryX, yPos);
+    doc.text(formatCurrency(data.subtotal), summaryX + 50, yPos, { align: 'right' });
+    yPos += 5;
+
+    if (data.discount > 0) {
+      doc.text('Discount:', summaryX, yPos);
+      doc.text(`-${formatCurrency(data.discount)}`, summaryX + 50, yPos, { align: 'right' });
+      yPos += 5;
+    }
+
+    doc.text('Tax:', summaryX, yPos);
+    doc.text(formatCurrency(data.tax), summaryX + 50, yPos, { align: 'right' });
+    yPos += 5;
+
+    doc.setLineWidth(0.3);
+    doc.line(summaryX, yPos, summaryX + 50, yPos);
+    yPos += 6;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('TOTAL (₹):', summaryX, yPos);
+    doc.text(formatCurrency(data.total), summaryX + 50, yPos, { align: 'right' });
+    yPos += 8;
+
+    if (data.terms) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('Terms & Conditions:', 20, yPos);
+      yPos += 5;
+
+      doc.setFont('helvetica', 'normal');
+      const termsLines = doc.splitTextToSize(data.terms, pageWidth - 40);
+      doc.text(termsLines, 20, yPos);
+      yPos += termsLines.length * 5 + 5;
+    }
+
+    if (data.notes) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('Notes:', 20, yPos);
+      yPos += 5;
+
+      doc.setFont('helvetica', 'normal');
+      const notesLines = doc.splitTextToSize(data.notes, pageWidth - 40);
+      doc.text(notesLines, 20, yPos);
+    }
+
+    addFooter(doc, 1);
+
+    doc.save(`Quotation-${data.quote_number}.pdf`);
+  } catch (err) {
+    console.error('PDF generation error:', err);
+    throw err;
   }
-
-  addFooter(doc, 1);
-
-  doc.save(`Quotation-${data.quote_number}.pdf`);
 };
