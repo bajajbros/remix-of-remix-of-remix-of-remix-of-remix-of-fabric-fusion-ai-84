@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabaseAnon } from '@/lib/supabaseAnonymous';
 import { generateAgreementPDF } from '@/lib/pdfUtils';
 import { formatDate } from '@/lib/exportUtils';
 import { Download, FileText, CheckCircle } from 'lucide-react';
@@ -48,22 +47,17 @@ const SharedAgreement = () => {
   useEffect(() => {
     const fetchAgreement = async () => {
       try {
-        const { data, error } = await supabaseAnon
-          .from('agreements')
-          .select(`
-            *,
-            client:clients(*)
-          `)
-          .eq('share_token', token)
-          .maybeSingle();
+        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-shared-document`;
+        const response = await fetch(`${apiUrl}?token=${token}&type=agreement`);
 
-        if (error) throw error;
-        if (!data) {
+        if (!response.ok) {
           setError('Agreement not found');
+          setLoading(false);
           return;
         }
 
-        setAgreement(data as any);
+        const agreementData = await response.json();
+        setAgreement(agreementData);
       } catch (err) {
         setError('Failed to load agreement');
         console.error(err);

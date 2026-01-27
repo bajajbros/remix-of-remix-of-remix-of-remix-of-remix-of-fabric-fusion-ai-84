@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabaseAnon } from '@/lib/supabaseAnonymous';
 import { generateQuotationPDF } from '@/lib/pdfUtils';
 import { formatDate } from '@/lib/exportUtils';
 import { Download, FileText } from 'lucide-react';
@@ -54,34 +53,17 @@ const SharedQuotation = () => {
   useEffect(() => {
     const fetchQuotation = async () => {
       try {
-        const { data: quotationData, error: quotationError } = await supabaseAnon
-          .from('quotations')
-          .select(`
-            *,
-            client:clients(*)
-          `)
-          .eq('share_token', token)
-          .maybeSingle();
+        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-shared-document`;
+        const response = await fetch(`${apiUrl}?token=${token}&type=quotation`);
 
-        if (quotationError) throw quotationError;
-        if (!quotationData) {
+        if (!response.ok) {
           setError('Quotation not found');
+          setLoading(false);
           return;
         }
 
-        const { data: itemsData, error: itemsError } = await supabaseAnon
-          .from('quotation_items')
-          .select('*')
-          .eq('quotation_id', quotationData.id);
-
-        if (itemsError) throw itemsError;
-
-        const formattedQuotation = {
-          ...quotationData,
-          items: itemsData || []
-        };
-
-        setQuotation(formattedQuotation as any);
+        const quotationData = await response.json();
+        setQuotation(quotationData);
       } catch (err) {
         setError('Failed to load quotation');
         console.error(err);

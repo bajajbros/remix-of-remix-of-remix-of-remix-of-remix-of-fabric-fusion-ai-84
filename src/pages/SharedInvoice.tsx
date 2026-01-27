@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabaseAnon } from '@/lib/supabaseAnonymous';
 import { generateInvoicePDF } from '@/lib/pdfUtils';
 import { formatDate } from '@/lib/exportUtils';
 import { Download, FileText } from 'lucide-react';
@@ -57,36 +56,17 @@ const SharedInvoice = () => {
   useEffect(() => {
     const fetchInvoice = async () => {
       try {
-        const client = supabaseAnon;
+        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-shared-document`;
+        const response = await fetch(`${apiUrl}?token=${token}&type=invoice`);
 
-        const { data: invoiceData, error: invoiceError } = await client
-          .from('invoices')
-          .select(`
-            *,
-            client:clients(*)
-          `)
-          .eq('share_token', token)
-          .maybeSingle();
-
-        if (invoiceError) throw invoiceError;
-        if (!invoiceData) {
+        if (!response.ok) {
           setError('Invoice not found');
+          setLoading(false);
           return;
         }
 
-        const { data: itemsData, error: itemsError } = await supabaseAnon
-          .from('invoice_items')
-          .select('*')
-          .eq('invoice_id', invoiceData.id);
-
-        if (itemsError) throw itemsError;
-
-        const formattedInvoice = {
-          ...invoiceData,
-          items: itemsData || []
-        };
-
-        setInvoice(formattedInvoice as any);
+        const invoiceData = await response.json();
+        setInvoice(invoiceData);
       } catch (err) {
         setError('Failed to load invoice');
         console.error(err);
