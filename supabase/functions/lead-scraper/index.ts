@@ -18,48 +18,97 @@ interface ScrapedLead {
   industry?: string;
 }
 
-const businessNames = {
-  retail: ["Store", "Mart", "Shop", "Emporium", "Bazaar", "Trade", "Traders", "Plaza"],
-  restaurant: ["Restaurant", "Cafe", "Dhaba", "Kitchen", "Biryani House", "Food Court", "Eatery"],
-  education: ["Academy", "Institute", "Classes", "School", "Coaching", "Tutorial", "Learning Center"],
-  healthcare: ["Clinic", "Hospital", "Pharmacy", "Medical Store", "Health Center", "Diagnostic"],
-  salon: ["Salon", "Spa", "Parlour", "Beauty Center", "Hair Studio", "Wellness"],
-  gym: ["Fitness", "Gym", "Yoga Center", "Health Club", "Sports Club"],
-  hotel: ["Hotel", "Lodge", "Inn", "Residency", "Palace", "Resort"],
-  cafe: ["Cafe", "Coffee House", "Tea Stall", "Juice Bar", "Bakery"],
+const cityCoordinates = {
+  Mumbai: { lat: 19.0760, lon: 72.8777, state: "Maharashtra" },
+  Delhi: { lat: 28.7041, lon: 77.1025, state: "Delhi" },
+  Bangalore: { lat: 12.9716, lon: 77.5946, state: "Karnataka" },
+  Pune: { lat: 18.5204, lon: 73.8567, state: "Maharashtra" },
+  Hyderabad: { lat: 17.3850, lon: 78.4867, state: "Telangana" },
+  Chennai: { lat: 13.0827, lon: 80.2707, state: "Tamil Nadu" },
+  Kolkata: { lat: 22.5726, lon: 88.3639, state: "West Bengal" },
+  Jaipur: { lat: 26.9124, lon: 75.7873, state: "Rajasthan" },
+  Ahmedabad: { lat: 23.0225, lon: 72.5714, state: "Gujarat" },
+  Lucknow: { lat: 26.8467, lon: 80.9462, state: "Uttar Pradesh" },
 };
 
-const prefixes = ["Royal", "New", "Modern", "City", "Star", "Super", "Golden", "Silver", "Prime", "Elite", "Fresh", "Grand", "Happy", "Lucky", "Shree", "Sai", "Om", "Jai"];
-
-const cities = {
-  Mumbai: { state: "Maharashtra", areas: ["Andheri", "Bandra", "Dadar", "Kurla", "Malad", "Borivali"] },
-  Delhi: { state: "Delhi", areas: ["Connaught Place", "Karol Bagh", "Lajpat Nagar", "Rohini", "Dwarka"] },
-  Bangalore: { state: "Karnataka", areas: ["Koramangala", "Indiranagar", "Whitefield", "Jayanagar", "BTM"] },
-  Pune: { state: "Maharashtra", areas: ["Kothrud", "Hinjewadi", "Viman Nagar", "Hadapsar", "Aundh"] },
-  Hyderabad: { state: "Telangana", areas: ["Banjara Hills", "Jubilee Hills", "Gachibowli", "Madhapur", "Kukatpally"] },
-  Chennai: { state: "Tamil Nadu", areas: ["T Nagar", "Anna Nagar", "Velachery", "Adyar", "Mylapore"] },
-  Kolkata: { state: "West Bengal", areas: ["Park Street", "Salt Lake", "Howrah", "Ballygunge", "New Town"] },
+const industryToOSMTags = {
+  retail: ["shop=supermarket", "shop=convenience", "shop=general", "shop=department_store", "shop=mall"],
+  restaurant: ["amenity=restaurant", "amenity=fast_food", "amenity=cafe", "amenity=food_court"],
+  education: ["amenity=school", "amenity=college", "amenity=university", "amenity=training"],
+  healthcare: ["amenity=hospital", "amenity=clinic", "amenity=pharmacy", "amenity=doctors"],
+  salon: ["shop=beauty", "shop=hairdresser", "amenity=spa"],
+  gym: ["leisure=fitness_centre", "leisure=sports_centre", "amenity=gym"],
+  hotel: ["tourism=hotel", "tourism=guest_house", "tourism=hostel"],
+  cafe: ["amenity=cafe", "shop=coffee", "amenity=tea_house"],
+  textile: ["shop=fabric", "shop=clothes", "shop=fashion", "craft=tailor"],
+  manufacturing: ["man_made=works", "industrial=factory", "landuse=industrial"],
 };
 
-function generateBusinessName(industry: string): string {
-  const industryNames = businessNames[industry.toLowerCase()] || ["Shop", "Store", "Center"];
-  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-  const suffix = industryNames[Math.floor(Math.random() * industryNames.length)];
-  return `${prefix} ${suffix}`;
+function buildOverpassQuery(industry: string, city: string, limit: number): string {
+  const coords = cityCoordinates[city] || cityCoordinates.Mumbai;
+  const tags = industryToOSMTags[industry.toLowerCase()] || ["shop"];
+
+  const radius = 15000;
+
+  const tagQueries = tags.map(tag => `node["${tag.split('=')[0]}"="${tag.split('=')[1]}"](around:${radius},${coords.lat},${coords.lon});`).join('\n  ');
+
+  return `[out:json][timeout:25];
+(
+  ${tagQueries}
+);
+out body ${limit};`;
 }
 
-function generatePhone(): string {
-  const prefixes = ["98", "99", "97", "96", "95", "94", "93", "92", "91", "90"];
-  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-  const rest = Math.floor(Math.random() * 100000000).toString().padStart(8, "0");
-  return prefix + rest;
-}
+async function scrapeFromOverpass(industry: string, location: string, limit: number): Promise<ScrapedLead[]> {
+  const query = buildOverpassQuery(industry, location, limit);
 
-function generateEmail(companyName: string): string {
-  const cleaned = companyName.toLowerCase().replace(/\s+/g, "");
-  const domains = ["gmail.com", "yahoo.com", "outlook.com", "rediffmail.com"];
-  const domain = domains[Math.floor(Math.random() * domains.length)];
-  return `contact@${cleaned}.com`;
+  const response = await fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST',
+    body: query,
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Overpass API error: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  const cityData = cityCoordinates[location] || cityCoordinates.Mumbai;
+
+  const leads: ScrapedLead[] = [];
+
+  for (const element of data.elements || []) {
+    if (!element.tags) continue;
+
+    const name = element.tags.name || element.tags.brand || element.tags.operator || "Unnamed Business";
+
+    const streetParts = [];
+    if (element.tags["addr:street"]) streetParts.push(element.tags["addr:street"]);
+    if (element.tags["addr:housenumber"]) streetParts.push(element.tags["addr:housenumber"]);
+    if (element.tags["addr:suburb"]) streetParts.push(element.tags["addr:suburb"]);
+
+    const address = streetParts.length > 0
+      ? streetParts.join(", ")
+      : element.tags["addr:full"] || "Address not available";
+
+    const lead: ScrapedLead = {
+      name: name,
+      company_name: name,
+      phone: element.tags.phone || element.tags["contact:phone"] || undefined,
+      email: element.tags.email || element.tags["contact:email"] || undefined,
+      address: address,
+      city: element.tags["addr:city"] || location,
+      state: element.tags["addr:state"] || cityData.state,
+      business_type: element.tags.amenity || element.tags.shop || element.tags.tourism || industry,
+      industry: industry,
+    };
+
+    leads.push(lead);
+  }
+
+  return leads;
 }
 
 Deno.serve(async (req: Request) => {
@@ -71,30 +120,42 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { industry, location, searchKeywords, limit = 7 } = await req.json();
+    const { industry, location, limit = 10 } = await req.json();
 
-    const leads: ScrapedLead[] = [];
+    if (!industry) {
+      return new Response(
+        JSON.stringify({
+          error: "Industry is required",
+          message: "Please provide an industry type",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     const targetCity = location || "Mumbai";
-    const cityData = cities[targetCity] || cities.Mumbai;
 
-    for (let i = 0; i < limit; i++) {
-      const companyName = generateBusinessName(industry);
-      const area = cityData.areas[Math.floor(Math.random() * cityData.areas.length)];
+    console.log(`Scraping ${limit} leads for ${industry} in ${targetCity}...`);
 
-      const lead: ScrapedLead = {
-        name: companyName,
-        company_name: companyName,
-        phone: generatePhone(),
-        email: generateEmail(companyName),
-        address: `Shop ${Math.floor(Math.random() * 50) + 1}, ${area}`,
-        city: targetCity,
-        state: cityData.state,
-        business_type: searchKeywords[Math.floor(Math.random() * searchKeywords.length)],
-        industry: industry,
-      };
+    const leads = await scrapeFromOverpass(industry, targetCity, limit);
 
-      leads.push(lead);
+    if (leads.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          leads: [],
+          count: 0,
+          industry: industry,
+          location: targetCity,
+          message: "No businesses found for this industry in the selected location. Try a different city or industry.",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     return new Response(
@@ -104,7 +165,8 @@ Deno.serve(async (req: Request) => {
         count: leads.length,
         industry: industry,
         location: targetCity,
-        message: "Leads generated successfully. These will be enriched with AI.",
+        source: "OpenStreetMap",
+        message: `Found ${leads.length} real businesses from OpenStreetMap. These will be enriched with AI.`,
       }),
       {
         status: 200,
@@ -115,8 +177,9 @@ Deno.serve(async (req: Request) => {
     console.error("Lead scraper error:", error);
     return new Response(
       JSON.stringify({
-        error: "Failed to generate leads",
+        error: "Failed to scrape leads",
         message: error.message,
+        details: "There was an error accessing OpenStreetMap data. Please try again.",
       }),
       {
         status: 500,
