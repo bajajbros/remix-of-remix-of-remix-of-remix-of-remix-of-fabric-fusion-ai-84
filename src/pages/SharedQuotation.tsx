@@ -54,7 +54,7 @@ const SharedQuotation = () => {
   useEffect(() => {
     const fetchQuotation = async () => {
       try {
-        const { data, error } = await supabase
+        const { data: quotationData, error: quotationError } = await supabase
           .from('quotations')
           .select(`
             *,
@@ -63,13 +63,25 @@ const SharedQuotation = () => {
           .eq('share_token', token)
           .maybeSingle();
 
-        if (error) throw error;
-        if (!data) {
+        if (quotationError) throw quotationError;
+        if (!quotationData) {
           setError('Quotation not found');
           return;
         }
 
-        setQuotation(data as any);
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('quotation_items')
+          .select('*')
+          .eq('quotation_id', quotationData.id);
+
+        if (itemsError) throw itemsError;
+
+        const formattedQuotation = {
+          ...quotationData,
+          items: itemsData || []
+        };
+
+        setQuotation(formattedQuotation as any);
       } catch (err) {
         setError('Failed to load quotation');
         console.error(err);

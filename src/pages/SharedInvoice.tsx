@@ -57,7 +57,7 @@ const SharedInvoice = () => {
   useEffect(() => {
     const fetchInvoice = async () => {
       try {
-        const { data, error } = await supabase
+        const { data: invoiceData, error: invoiceError } = await supabase
           .from('invoices')
           .select(`
             *,
@@ -66,13 +66,25 @@ const SharedInvoice = () => {
           .eq('share_token', token)
           .maybeSingle();
 
-        if (error) throw error;
-        if (!data) {
+        if (invoiceError) throw invoiceError;
+        if (!invoiceData) {
           setError('Invoice not found');
           return;
         }
 
-        setInvoice(data as any);
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('invoice_items')
+          .select('*')
+          .eq('invoice_id', invoiceData.id);
+
+        if (itemsError) throw itemsError;
+
+        const formattedInvoice = {
+          ...invoiceData,
+          items: itemsData || []
+        };
+
+        setInvoice(formattedInvoice as any);
       } catch (err) {
         setError('Failed to load invoice');
         console.error(err);
