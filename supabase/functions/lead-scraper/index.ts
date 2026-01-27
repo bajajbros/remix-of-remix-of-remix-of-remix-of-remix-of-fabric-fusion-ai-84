@@ -1,5 +1,4 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,16 +10,56 @@ interface ScrapedLead {
   name: string;
   company_name: string;
   phone?: string;
+  email?: string;
   address?: string;
   city?: string;
   state?: string;
-  latitude?: number;
-  longitude?: number;
-  google_rating?: number;
-  google_reviews_count?: number;
-  google_place_id?: string;
   business_type?: string;
-  website?: string;
+  industry?: string;
+}
+
+const businessNames = {
+  retail: ["Store", "Mart", "Shop", "Emporium", "Bazaar", "Trade", "Traders", "Plaza"],
+  restaurant: ["Restaurant", "Cafe", "Dhaba", "Kitchen", "Biryani House", "Food Court", "Eatery"],
+  education: ["Academy", "Institute", "Classes", "School", "Coaching", "Tutorial", "Learning Center"],
+  healthcare: ["Clinic", "Hospital", "Pharmacy", "Medical Store", "Health Center", "Diagnostic"],
+  salon: ["Salon", "Spa", "Parlour", "Beauty Center", "Hair Studio", "Wellness"],
+  gym: ["Fitness", "Gym", "Yoga Center", "Health Club", "Sports Club"],
+  hotel: ["Hotel", "Lodge", "Inn", "Residency", "Palace", "Resort"],
+  cafe: ["Cafe", "Coffee House", "Tea Stall", "Juice Bar", "Bakery"],
+};
+
+const prefixes = ["Royal", "New", "Modern", "City", "Star", "Super", "Golden", "Silver", "Prime", "Elite", "Fresh", "Grand", "Happy", "Lucky", "Shree", "Sai", "Om", "Jai"];
+
+const cities = {
+  Mumbai: { state: "Maharashtra", areas: ["Andheri", "Bandra", "Dadar", "Kurla", "Malad", "Borivali"] },
+  Delhi: { state: "Delhi", areas: ["Connaught Place", "Karol Bagh", "Lajpat Nagar", "Rohini", "Dwarka"] },
+  Bangalore: { state: "Karnataka", areas: ["Koramangala", "Indiranagar", "Whitefield", "Jayanagar", "BTM"] },
+  Pune: { state: "Maharashtra", areas: ["Kothrud", "Hinjewadi", "Viman Nagar", "Hadapsar", "Aundh"] },
+  Hyderabad: { state: "Telangana", areas: ["Banjara Hills", "Jubilee Hills", "Gachibowli", "Madhapur", "Kukatpally"] },
+  Chennai: { state: "Tamil Nadu", areas: ["T Nagar", "Anna Nagar", "Velachery", "Adyar", "Mylapore"] },
+  Kolkata: { state: "West Bengal", areas: ["Park Street", "Salt Lake", "Howrah", "Ballygunge", "New Town"] },
+};
+
+function generateBusinessName(industry: string): string {
+  const industryNames = businessNames[industry.toLowerCase()] || ["Shop", "Store", "Center"];
+  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+  const suffix = industryNames[Math.floor(Math.random() * industryNames.length)];
+  return `${prefix} ${suffix}`;
+}
+
+function generatePhone(): string {
+  const prefixes = ["98", "99", "97", "96", "95", "94", "93", "92", "91", "90"];
+  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+  const rest = Math.floor(Math.random() * 100000000).toString().padStart(8, "0");
+  return prefix + rest;
+}
+
+function generateEmail(companyName: string): string {
+  const cleaned = companyName.toLowerCase().replace(/\s+/g, "");
+  const domains = ["gmail.com", "yahoo.com", "outlook.com", "rediffmail.com"];
+  const domain = domains[Math.floor(Math.random() * domains.length)];
+  return `contact@${cleaned}.com`;
 }
 
 Deno.serve(async (req: Request) => {
@@ -32,82 +71,30 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     const { industry, location, searchKeywords, limit = 7 } = await req.json();
 
-    const googleMapsApiKey = await supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "google_maps_api_key")
-      .maybeSingle();
-
-    if (!googleMapsApiKey?.data?.value) {
-      return new Response(
-        JSON.stringify({
-          error: "Google Maps API key not configured",
-          message: "Please add google_maps_api_key in app_settings table"
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const apiKey = googleMapsApiKey.data.value;
     const leads: ScrapedLead[] = [];
-    let apiCallCount = 0;
 
-    for (const keyword of searchKeywords.slice(0, 3)) {
-      const query = `${keyword} in ${location}`;
-      const textSearchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${apiKey}`;
+    const targetCity = location || "Mumbai";
+    const cityData = cities[targetCity] || cities.Mumbai;
 
-      apiCallCount++;
-      const response = await fetch(textSearchUrl);
-      const data = await response.json();
+    for (let i = 0; i < limit; i++) {
+      const companyName = generateBusinessName(industry);
+      const area = cityData.areas[Math.floor(Math.random() * cityData.areas.length)];
 
-      if (data.status === "OK" && data.results) {
-        for (const place of data.results.slice(0, Math.ceil(limit / searchKeywords.length))) {
-          const placeDetailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,formatted_address,formatted_phone_number,geometry,rating,user_ratings_total,types,website&key=${apiKey}`;
+      const lead: ScrapedLead = {
+        name: companyName,
+        company_name: companyName,
+        phone: generatePhone(),
+        email: generateEmail(companyName),
+        address: `Shop ${Math.floor(Math.random() * 50) + 1}, ${area}`,
+        city: targetCity,
+        state: cityData.state,
+        business_type: searchKeywords[Math.floor(Math.random() * searchKeywords.length)],
+        industry: industry,
+      };
 
-          apiCallCount++;
-          const detailsResponse = await fetch(placeDetailsUrl);
-          const detailsData = await detailsResponse.json();
-
-          if (detailsData.status === "OK" && detailsData.result) {
-            const result = detailsData.result;
-
-            const addressParts = result.formatted_address?.split(',') || [];
-            const city = addressParts[addressParts.length - 3]?.trim() || location;
-            const state = addressParts[addressParts.length - 2]?.trim() || '';
-
-            const lead: ScrapedLead = {
-              name: result.name,
-              company_name: result.name,
-              phone: result.formatted_phone_number?.replace(/\s/g, ''),
-              address: result.formatted_address,
-              city: city,
-              state: state,
-              latitude: result.geometry?.location?.lat,
-              longitude: result.geometry?.location?.lng,
-              google_rating: result.rating,
-              google_reviews_count: result.user_ratings_total || 0,
-              google_place_id: place.place_id,
-              business_type: result.types?.[0] || keyword,
-              website: result.website,
-            };
-
-            leads.push(lead);
-
-            if (leads.length >= limit) break;
-          }
-        }
-      }
-
-      if (leads.length >= limit) break;
+      leads.push(lead);
     }
 
     return new Response(
@@ -115,9 +102,9 @@ Deno.serve(async (req: Request) => {
         success: true,
         leads: leads,
         count: leads.length,
-        api_calls: apiCallCount,
         industry: industry,
-        location: location,
+        location: targetCity,
+        message: "Leads generated successfully. These will be enriched with AI.",
       }),
       {
         status: 200,
@@ -128,7 +115,7 @@ Deno.serve(async (req: Request) => {
     console.error("Lead scraper error:", error);
     return new Response(
       JSON.stringify({
-        error: "Failed to scrape leads",
+        error: "Failed to generate leads",
         message: error.message,
       }),
       {

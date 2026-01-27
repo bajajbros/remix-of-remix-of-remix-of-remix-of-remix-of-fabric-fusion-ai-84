@@ -19,7 +19,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -67,16 +66,6 @@ const Leads = () => {
   const [noteText, setNoteText] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState("all");
   const [selectedLocation, setSelectedLocation] = useState("auto");
-  const [manualEntryOpen, setManualEntryOpen] = useState(false);
-  const [manualLeadForm, setManualLeadForm] = useState({
-    company_name: "",
-    phone: "",
-    email: "",
-    city: "",
-    state: "",
-    industry: "",
-    business_type: "",
-  });
 
   const filteredLeads = leads.filter((lead) => {
     const matchesSearch =
@@ -190,44 +179,6 @@ const Leads = () => {
     }
   };
 
-  const handleManualEntry = async () => {
-    if (!manualLeadForm.company_name || !manualLeadForm.phone) {
-      alert("Please fill company name and phone number");
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manual-lead-entry`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            leads: [manualLeadForm],
-          }),
-        }
-      );
-
-      if (response.ok) {
-        setManualEntryOpen(false);
-        setManualLeadForm({
-          company_name: "",
-          phone: "",
-          email: "",
-          city: "",
-          state: "",
-          industry: "",
-          business_type: "",
-        });
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error("Manual entry error:", error);
-    }
-  };
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -238,127 +189,19 @@ const Leads = () => {
               AI-powered lead generation for your sticker printing business
             </p>
           </div>
-          <div className="flex gap-2">
-            <Dialog open={manualEntryOpen} onOpenChange={setManualEntryOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="lg">
-                  <UserPlus className="mr-2 h-5 w-5" />
-                  Add Lead Manually
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Add Lead Manually</DialogTitle>
-                  <DialogDescription>
-                    Enter business details. AI will automatically enrich and score the lead.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4">
-                  <div className="grid gap-2">
-                    <Label>Company Name *</Label>
-                    <Input
-                      value={manualLeadForm.company_name}
-                      onChange={(e) =>
-                        setManualLeadForm({ ...manualLeadForm, company_name: e.target.value })
-                      }
-                      placeholder="e.g., ABC Retail Store"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label>Phone Number *</Label>
-                      <Input
-                        value={manualLeadForm.phone}
-                        onChange={(e) =>
-                          setManualLeadForm({ ...manualLeadForm, phone: e.target.value })
-                        }
-                        placeholder="e.g., 9876543210"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Email</Label>
-                      <Input
-                        value={manualLeadForm.email}
-                        onChange={(e) =>
-                          setManualLeadForm({ ...manualLeadForm, email: e.target.value })
-                        }
-                        placeholder="e.g., contact@company.com"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label>City</Label>
-                      <Input
-                        value={manualLeadForm.city}
-                        onChange={(e) =>
-                          setManualLeadForm({ ...manualLeadForm, city: e.target.value })
-                        }
-                        placeholder="e.g., Mumbai"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>State</Label>
-                      <Input
-                        value={manualLeadForm.state}
-                        onChange={(e) =>
-                          setManualLeadForm({ ...manualLeadForm, state: e.target.value })
-                        }
-                        placeholder="e.g., Maharashtra"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label>Industry</Label>
-                      <Input
-                        value={manualLeadForm.industry}
-                        onChange={(e) =>
-                          setManualLeadForm({ ...manualLeadForm, industry: e.target.value })
-                        }
-                        placeholder="e.g., Retail"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Business Type</Label>
-                      <Input
-                        value={manualLeadForm.business_type}
-                        onChange={(e) =>
-                          setManualLeadForm({ ...manualLeadForm, business_type: e.target.value })
-                        }
-                        placeholder="e.g., Gift Shop"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 pt-4">
-                    <Button onClick={handleManualEntry} className="flex-1">
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Add & Process with AI
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setManualEntryOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <Button onClick={handleGenerateLeads} disabled={isGenerating} size="lg">
-              {isGenerating ? (
-                <>
-                  <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Auto Generate
-                </>
-              )}
-            </Button>
-          </div>
+          <Button onClick={handleGenerateLeads} disabled={isGenerating} size="lg">
+            {isGenerating ? (
+              <>
+                <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
+                Generating Leads...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-5 w-5" />
+                Generate Leads
+              </>
+            )}
+          </Button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
@@ -425,9 +268,9 @@ const Leads = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Auto Lead Generation Settings</CardTitle>
+            <CardTitle>Lead Generation Settings</CardTitle>
             <CardDescription>
-              Configure target industry and location for automatic lead generation (Requires Google Maps API key)
+              Configure target industry and location for automatic AI-powered lead generation
             </CardDescription>
           </CardHeader>
           <CardContent>
