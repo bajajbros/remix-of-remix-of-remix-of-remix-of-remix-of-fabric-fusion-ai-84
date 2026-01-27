@@ -16,6 +16,9 @@ interface ScrapedLead {
   state?: string;
   business_type?: string;
   industry?: string;
+  google_place_id?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 const cityCoordinates = {
@@ -32,21 +35,22 @@ const cityCoordinates = {
 };
 
 const industryToOSMTags = {
-  retail: ["shop=supermarket", "shop=convenience", "shop=general", "shop=department_store", "shop=mall"],
+  retail: ["shop=supermarket", "shop=convenience", "shop=general", "shop=department_store", "shop=mall", "shop=variety_store"],
   restaurant: ["amenity=restaurant", "amenity=fast_food", "amenity=cafe", "amenity=food_court"],
-  education: ["amenity=school", "amenity=college", "amenity=university", "amenity=training"],
-  healthcare: ["amenity=hospital", "amenity=clinic", "amenity=pharmacy", "amenity=doctors"],
-  salon: ["shop=beauty", "shop=hairdresser", "amenity=spa"],
+  education: ["amenity=school", "amenity=college", "amenity=university", "amenity=training", "amenity=kindergarten"],
+  healthcare: ["amenity=hospital", "amenity=clinic", "amenity=pharmacy", "amenity=doctors", "amenity=dentist"],
+  salon: ["shop=beauty", "shop=hairdresser", "amenity=spa", "shop=cosmetics"],
   gym: ["leisure=fitness_centre", "leisure=sports_centre", "amenity=gym"],
-  hotel: ["tourism=hotel", "tourism=guest_house", "tourism=hostel"],
+  hotel: ["tourism=hotel", "tourism=guest_house", "tourism=hostel", "tourism=motel"],
   cafe: ["amenity=cafe", "shop=coffee", "amenity=tea_house"],
-  textile: ["shop=fabric", "shop=clothes", "shop=fashion", "craft=tailor"],
+  textile: ["shop=fabric", "shop=clothes", "shop=fashion", "craft=tailor", "shop=boutique"],
   manufacturing: ["man_made=works", "industrial=factory", "landuse=industrial"],
+  default: ["shop", "office=company", "amenity=restaurant", "shop=supermarket"],
 };
 
 function buildOverpassQuery(industry: string, city: string, limit: number): string {
   const coords = cityCoordinates[city] || cityCoordinates.Mumbai;
-  const tags = industryToOSMTags[industry.toLowerCase()] || ["shop"];
+  const tags = industryToOSMTags[industry.toLowerCase()] || industryToOSMTags["default"];
 
   const radius = 15000;
 
@@ -103,6 +107,9 @@ async function scrapeFromOverpass(industry: string, location: string, limit: num
       state: element.tags["addr:state"] || cityData.state,
       business_type: element.tags.amenity || element.tags.shop || element.tags.tourism || industry,
       industry: industry,
+      google_place_id: `osm_${element.type}_${element.id}`,
+      latitude: element.lat,
+      longitude: element.lon,
     };
 
     leads.push(lead);
@@ -163,6 +170,7 @@ Deno.serve(async (req: Request) => {
         success: true,
         leads: leads,
         count: leads.length,
+        api_calls: 1,
         industry: industry,
         location: targetCity,
         source: "OpenStreetMap",
