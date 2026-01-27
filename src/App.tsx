@@ -44,6 +44,9 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Refund from "./pages/Refund";
 import NotFound from "./pages/NotFound";
+import SharedInvoice from "./pages/SharedInvoice";
+import SharedAgreement from "./pages/SharedAgreement";
+import SharedQuotation from "./pages/SharedQuotation";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +63,9 @@ const App = () => (
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/portal/:token" element={<ClientPortal />} />
+              <Route path="/invoice/:token" element={<SharedInvoice />} />
+              <Route path="/agreement/:token" element={<SharedAgreement />} />
+              <Route path="/quotation/:token" element={<SharedQuotation />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/refund" element={<Refund />} />

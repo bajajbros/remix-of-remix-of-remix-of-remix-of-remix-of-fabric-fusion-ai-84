@@ -615,12 +615,12 @@ const Quotations = () => {
                     variant="outline"
                     className="flex-1 gap-2"
                     onClick={() => {
-                      if (selectedQuote?.client?.client_portal_token) {
-                        const portalLink = `${window.location.origin}/portal/${selectedQuote.client.client_portal_token}`;
-                        navigator.clipboard.writeText(portalLink);
-                        toast({ title: 'Link Copied!', description: 'Client portal link copied to clipboard' });
+                      if (selectedQuote?.share_token) {
+                        const shareLink = `${window.location.origin}/quotation/${selectedQuote.share_token}`;
+                        navigator.clipboard.writeText(shareLink);
+                        toast({ title: 'Link Copied!', description: 'Quotation link copied to clipboard' });
                       } else {
-                        toast({ title: 'No Portal Access', description: 'This client does not have portal access', variant: 'destructive' });
+                        toast({ title: 'Error', description: 'Unable to generate share link', variant: 'destructive' });
                       }
                     }}
                   >

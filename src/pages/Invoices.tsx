@@ -659,12 +659,12 @@ const Invoices = () => {
                     variant="outline"
                     className="flex-1 gap-2"
                     onClick={() => {
-                      if (selectedInvoice?.client?.client_portal_token) {
-                        const portalLink = `${window.location.origin}/portal/${selectedInvoice.client.client_portal_token}`;
-                        navigator.clipboard.writeText(portalLink);
-                        toast({ title: 'Link Copied!', description: 'Client portal link copied to clipboard' });
+                      if (selectedInvoice?.share_token) {
+                        const shareLink = `${window.location.origin}/invoice/${selectedInvoice.share_token}`;
+                        navigator.clipboard.writeText(shareLink);
+                        toast({ title: 'Link Copied!', description: 'Invoice link copied to clipboard' });
                       } else {
-                        toast({ title: 'No Portal Access', description: 'This client does not have portal access', variant: 'destructive' });
+                        toast({ title: 'Error', description: 'Unable to generate share link', variant: 'destructive' });
                       }
                     }}
                   >

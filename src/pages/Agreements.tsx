@@ -598,12 +598,12 @@ const Agreements = () => {
                     variant="outline"
                     className="flex-1 gap-2"
                     onClick={() => {
-                      if (selectedAgreement?.client?.client_portal_token) {
-                        const portalLink = `${window.location.origin}/portal/${selectedAgreement.client.client_portal_token}`;
-                        navigator.clipboard.writeText(portalLink);
-                        toast({ title: 'Link Copied!', description: 'Client portal link copied to clipboard' });
+                      if (selectedAgreement?.share_token) {
+                        const shareLink = `${window.location.origin}/agreement/${selectedAgreement.share_token}`;
+                        navigator.clipboard.writeText(shareLink);
+                        toast({ title: 'Link Copied!', description: 'Agreement link copied to clipboard' });
                       } else {
-                        toast({ title: 'No Portal Access', description: 'This client does not have portal access', variant: 'destructive' });
+                        toast({ title: 'Error', description: 'Unable to generate share link', variant: 'destructive' });
                       }
                     }}
                   >
