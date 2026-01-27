@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseAnonAnon } from '@/lib/supabaseAnonAnonymous';
 import { generateAgreementPDF } from '@/lib/pdfUtils';
 import { formatDate } from '@/lib/exportUtils';
 import { Download, FileText, CheckCircle } from 'lucide-react';
@@ -48,7 +48,7 @@ const SharedAgreement = () => {
   useEffect(() => {
     const fetchAgreement = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAnon
           .from('agreements')
           .select(`
             *,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseAnonAnon } from '@/lib/supabaseAnonAnonymous';
 import { generateInvoicePDF } from '@/lib/pdfUtils';
 import { formatDate } from '@/lib/exportUtils';
 import { Download, FileText } from 'lucide-react';
@@ -57,7 +57,7 @@ const SharedInvoice = () => {
   useEffect(() => {
     const fetchInvoice = async () => {
       try {
-        const { data: invoiceData, error: invoiceError } = await supabase
+        const { data: invoiceData, error: invoiceError } = await supabaseAnon
           .from('invoices')
           .select(`
             *,
@@ -72,7 +72,7 @@ const SharedInvoice = () => {
           return;
         }
 
-        const { data: itemsData, error: itemsError } = await supabase
+        const { data: itemsData, error: itemsError } = await supabaseAnon
           .from('invoice_items')
           .select('*')
           .eq('invoice_id', invoiceData.id);

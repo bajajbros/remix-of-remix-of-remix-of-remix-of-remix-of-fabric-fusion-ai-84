@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseAnonAnon } from '@/lib/supabaseAnonAnonymous';
 import { generateQuotationPDF } from '@/lib/pdfUtils';
 import { formatDate } from '@/lib/exportUtils';
 import { Download, FileText } from 'lucide-react';
@@ -54,7 +54,7 @@ const SharedQuotation = () => {
   useEffect(() => {
     const fetchQuotation = async () => {
       try {
-        const { data: quotationData, error: quotationError } = await supabase
+        const { data: quotationData, error: quotationError } = await supabaseAnon
           .from('quotations')
           .select(`
             *,
@@ -69,7 +69,7 @@ const SharedQuotation = () => {
           return;
         }
 
-        const { data: itemsData, error: itemsError } = await supabase
+        const { data: itemsData, error: itemsError } = await supabaseAnon
           .from('quotation_items')
           .select('*')
           .eq('quotation_id', quotationData.id);
