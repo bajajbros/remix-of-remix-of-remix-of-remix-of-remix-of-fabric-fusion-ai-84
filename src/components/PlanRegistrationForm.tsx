@@ -107,7 +107,7 @@ const PlanRegistrationForm = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className={step === 'payment' ? "sm:max-w-[800px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[500px]"}>
         {step === 'form' ? (
           <>
             <DialogHeader>
@@ -198,124 +198,130 @@ const PlanRegistrationForm = ({
           </>
         ) : (
           <>
-            <DialogHeader>
-              <div className="flex items-center justify-center mb-4">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircle2 className="w-10 h-10 text-green-600" />
+            <DialogHeader className="space-y-3">
+              <div className="flex items-center justify-center">
+                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-8 h-8 text-green-600" />
                 </div>
               </div>
               <DialogTitle className="text-2xl text-center">Registration Successful!</DialogTitle>
               <DialogDescription className="text-center">
-                Thank you for choosing the {planName} plan. Here are the payment details:
+                Thank you for choosing the {planName} plan. Complete your payment below to activate your account.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-6 mt-6">
-              <div className="bg-muted p-6 rounded-lg space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b">
-                  <span className="font-semibold">Plan Selected:</span>
-                  <span className="text-lg font-bold text-primary">{planName}</span>
-                </div>
-                <div className="flex items-center justify-between pb-2 border-b">
-                  <span className="font-semibold">Amount:</span>
-                  <span className="text-2xl font-bold">{formatPrice(planPrice)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">Billing Cycle:</span>
-                  <span className="capitalize">{billingCycle}</span>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <CreditCard className="w-5 h-5" />
-                  Payment Methods
-                </h4>
-
-                <div className="space-y-3">
-                  <div className="p-4 border-2 border-primary/50 rounded-lg space-y-3 bg-primary/5">
-                    <p className="font-semibold flex items-center gap-2">
-                      <QrCode className="w-5 h-5 text-primary" />
-                      UPI Payment (Recommended)
-                    </p>
-
-                    <div className="flex flex-col md:flex-row gap-4 items-center">
-                      <div className="flex-1 space-y-3 w-full">
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-2">UPI ID:</p>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 p-3 bg-background rounded-lg border font-mono text-sm">
-                              {upiId}
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={copyUPIId}
-                              className="gap-2"
-                            >
-                              {copiedUPI ? (
-                                <>
-                                  <Check className="w-4 h-4" />
-                                  Copied
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-4 h-4" />
-                                  Copy
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Scan QR code or copy UPI ID to make payment using any UPI app (GPay, PhonePe, Paytm, etc.)
-                        </p>
-                      </div>
-
-                      <div className="flex-shrink-0">
-                        <div className="p-3 bg-white rounded-lg border-2 border-primary/20">
-                          <img
-                            src={qrCodeUrl}
-                            alt="UPI QR Code"
-                            className="w-32 h-32 object-contain"
-                          />
-                        </div>
-                        <p className="text-xs text-center text-muted-foreground mt-2">Scan to Pay</p>
-                      </div>
-                    </div>
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-5 rounded-xl border-2 border-primary/20">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Plan</p>
+                    <p className="font-bold text-primary text-lg">{planName}</p>
                   </div>
-
-                  <div className="p-4 border rounded-lg space-y-2">
-                    <p className="font-semibold">Bank Transfer</p>
-                    <p className="text-sm text-muted-foreground">
-                      Contact our sales team for bank account details
-                    </p>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Amount</p>
+                    <p className="font-bold text-2xl">{formatPrice(planPrice)}</p>
                   </div>
-
-                  <div className="p-4 border rounded-lg space-y-2">
-                    <p className="font-semibold flex items-center gap-2">
-                      <Phone className="w-4 h-4" />
-                      Contact Sales Team
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Our team will reach out to you within 24 hours to complete the payment process and activate your account.
-                    </p>
-                    <div className="flex flex-col gap-1 mt-2">
-                      <a href="tel:+917303408500" className="text-sm text-primary hover:underline">
-                        📞 +91 73034 08500
-                      </a>
-                      <a href="tel:+918383954181" className="text-sm text-primary hover:underline">
-                        📞 +91 83839 54181
-                      </a>
-                      <a href="https://wa.me/917303408500" target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
-                        💬 WhatsApp: +91 73034 08500
-                      </a>
-                    </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Billing</p>
+                    <p className="font-bold text-lg capitalize">{billingCycle}</p>
                   </div>
                 </div>
               </div>
 
-              <Button onClick={handleClose} className="w-full">
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 p-6 rounded-xl border-2 border-green-500/30">
+                <div className="flex items-center gap-2 mb-4">
+                  <QrCode className="w-6 h-6 text-green-600" />
+                  <h4 className="font-bold text-lg">UPI Payment (Recommended)</h4>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">UPI ID</Label>
+                      <div className="flex gap-2">
+                        <div className="flex-1 p-3 bg-white dark:bg-gray-900 rounded-lg border-2 border-green-200 dark:border-green-800 font-mono text-sm font-semibold">
+                          {upiId}
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={copyUPIId}
+                          className="gap-2 bg-green-600 hover:bg-green-700"
+                        >
+                          {copiedUPI ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4" />
+                              Copy
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border-2 border-green-200 dark:border-green-800">
+                      <h5 className="font-semibold text-sm mb-2">Payment Instructions:</h5>
+                      <ol className="text-xs space-y-1.5 text-muted-foreground list-decimal list-inside">
+                        <li>Open any UPI app (GPay, PhonePe, Paytm)</li>
+                        <li>Scan the QR code or use the UPI ID</li>
+                        <li>Enter amount: <span className="font-bold text-foreground">{formatPrice(planPrice)}</span></li>
+                        <li>Complete the payment</li>
+                      </ol>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="bg-white p-4 rounded-xl border-4 border-green-500 shadow-lg">
+                      <img
+                        src={qrCodeUrl}
+                        alt="UPI QR Code"
+                        className="w-48 h-48 object-cover"
+                      />
+                    </div>
+                    <p className="text-sm font-semibold text-green-700 dark:text-green-400 mt-3">
+                      Scan to Pay {formatPrice(planPrice)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-3">
+                <div className="p-4 border-2 rounded-xl space-y-2 hover:border-primary/50 transition-colors">
+                  <p className="font-semibold flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-primary" />
+                    Bank Transfer
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Contact our sales team for bank account details
+                  </p>
+                </div>
+
+                <div className="p-4 border-2 rounded-xl space-y-2 hover:border-primary/50 transition-colors">
+                  <p className="font-semibold flex items-center gap-2">
+                    <Phone className="w-5 h-5 text-primary" />
+                    Need Help?
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    <a href="tel:+917303408500" className="text-sm text-primary hover:underline">
+                      +91 73034 08500
+                    </a>
+                    <a href="https://wa.me/917303408500" target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
+                      WhatsApp Support
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-muted/50 p-4 rounded-lg border">
+                <p className="text-xs text-muted-foreground text-center">
+                  Our team will verify your payment and activate your account within 24 hours. You will receive a confirmation email once your account is active.
+                </p>
+              </div>
+
+              <Button onClick={handleClose} className="w-full" size="lg">
                 Close
               </Button>
             </div>
