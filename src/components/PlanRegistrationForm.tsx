@@ -40,8 +40,8 @@ const PlanRegistrationForm = ({
     message: '',
   });
 
-  const upiId = 'your-upi-id@paytm';
-  const qrCodeUrl = 'https://exkmbvfehmzehnsnfzww.supabase.co/storage/v1/object/public/logos/logo-1767650736764.png';
+  const upiId = '7303408500@kotak811';
+  const qrCodeUrl = 'https://ibb.co/xtXt8B4Z';
 
   const copyUPIId = () => {
     navigator.clipboard.writeText(upiId);
