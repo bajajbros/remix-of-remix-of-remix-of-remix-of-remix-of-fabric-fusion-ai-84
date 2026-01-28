@@ -21,6 +21,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -43,8 +51,15 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  MoreVertical,
+  FileText,
+  Table2,
 } from "lucide-react";
 import { format } from "date-fns";
+import { exportToCSV } from "@/lib/exportUtils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { toast } from "sonner";
 
 const Leads = () => {
   const {
@@ -180,6 +195,83 @@ const Leads = () => {
     }
   };
 
+  const handleStatusChange = (lead: Lead, newStatus: string) => {
+    updateLead({
+      id: lead.id,
+      updates: { status: newStatus as any },
+    });
+  };
+
+  const handlePriorityChange = (lead: Lead, newPriority: string) => {
+    updateLead({
+      id: lead.id,
+      updates: { priority: newPriority as any },
+    });
+  };
+
+  const exportLeadsToCSV = () => {
+    if (filteredLeads.length === 0) {
+      toast.error("No leads to export");
+      return;
+    }
+
+    const columns = [
+      { header: "Company Name", accessor: (lead: Lead) => lead.company_name },
+      { header: "Contact Name", accessor: (lead: Lead) => lead.name || "" },
+      { header: "Phone", accessor: (lead: Lead) => lead.phone || "" },
+      { header: "Email", accessor: (lead: Lead) => lead.email || "" },
+      { header: "City", accessor: (lead: Lead) => lead.city || "" },
+      { header: "State", accessor: (lead: Lead) => lead.state || "" },
+      { header: "Industry", accessor: (lead: Lead) => lead.industry || "" },
+      { header: "Status", accessor: (lead: Lead) => lead.status || "" },
+      { header: "Priority", accessor: (lead: Lead) => lead.priority || "" },
+      { header: "Score", accessor: (lead: Lead) => lead.score?.toString() || "0" },
+      { header: "Est. Order Value", accessor: (lead: Lead) => lead.estimated_order_value?.toString() || "" },
+      { header: "Created Date", accessor: (lead: Lead) => lead.created_at ? format(new Date(lead.created_at), "yyyy-MM-dd") : "" },
+    ];
+
+    exportToCSV(filteredLeads, columns, `leads-${format(new Date(), "yyyy-MM-dd")}.csv`);
+    toast.success(`Exported ${filteredLeads.length} leads to CSV`);
+  };
+
+  const exportLeadsToPDF = () => {
+    if (filteredLeads.length === 0) {
+      toast.error("No leads to export");
+      return;
+    }
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text("Leads Report", 14, 20);
+
+    doc.setFontSize(11);
+    doc.text(`Generated on: ${format(new Date(), "MMMM dd, yyyy")}`, 14, 30);
+    doc.text(`Total Leads: ${filteredLeads.length}`, 14, 37);
+
+    const tableData = filteredLeads.map((lead) => [
+      lead.company_name,
+      lead.phone || "-",
+      lead.city || "-",
+      lead.industry || "-",
+      lead.status || "-",
+      lead.priority || "-",
+      lead.score?.toString() || "0",
+    ]);
+
+    autoTable(doc, {
+      startY: 45,
+      head: [["Company", "Phone", "City", "Industry", "Status", "Priority", "Score"]],
+      body: tableData,
+      theme: "grid",
+      headStyles: { fillColor: [59, 130, 246] },
+      styles: { fontSize: 9 },
+    });
+
+    doc.save(`leads-report-${format(new Date(), "yyyy-MM-dd")}.pdf`);
+    toast.success(`Exported ${filteredLeads.length} leads to PDF`);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -284,6 +376,16 @@ const Leads = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Industries</SelectItem>
+                    <SelectItem value="retail">🛒 Retail & Shops</SelectItem>
+                    <SelectItem value="restaurant">🍽️ Restaurants & Cafes</SelectItem>
+                    <SelectItem value="education">🎓 Education</SelectItem>
+                    <SelectItem value="healthcare">🏥 Healthcare</SelectItem>
+                    <SelectItem value="salon">💇 Salon & Beauty</SelectItem>
+                    <SelectItem value="gym">💪 Gym & Fitness</SelectItem>
+                    <SelectItem value="hotel">🏨 Hotels</SelectItem>
+                    <SelectItem value="cafe">☕ Cafes</SelectItem>
+                    <SelectItem value="textile">👔 Textile & Fashion</SelectItem>
+                    <SelectItem value="manufacturing">🏭 Manufacturing</SelectItem>
                     {leadSources.map((source) => (
                       <SelectItem key={source.id} value={source.industry_name}>
                         {source.industry_name}
@@ -308,6 +410,14 @@ const Leads = () => {
                     <SelectItem value="Hyderabad">Hyderabad</SelectItem>
                     <SelectItem value="Chennai">Chennai</SelectItem>
                     <SelectItem value="Kolkata">Kolkata</SelectItem>
+                    <SelectItem value="Jaipur">Jaipur</SelectItem>
+                    <SelectItem value="Ahmedabad">Ahmedabad</SelectItem>
+                    <SelectItem value="Lucknow">Lucknow</SelectItem>
+                    <SelectItem value="Surat">Surat</SelectItem>
+                    <SelectItem value="Nagpur">Nagpur</SelectItem>
+                    <SelectItem value="Indore">Indore</SelectItem>
+                    <SelectItem value="Bhopal">Bhopal</SelectItem>
+                    <SelectItem value="Chandigarh">Chandigarh</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -328,10 +438,26 @@ const Leads = () => {
                 <CardTitle>Leads Database</CardTitle>
                 <CardDescription>Manage and track your generated leads</CardDescription>
               </div>
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" />
-                Export CSV
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={exportLeadsToCSV}>
+                    <Table2 className="mr-2 h-4 w-4" />
+                    Export to CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportLeadsToPDF}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Export to PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </CardHeader>
           <CardContent>
@@ -390,22 +516,58 @@ const Leads = () => {
                     <Card key={lead.id} className="hover:shadow-lg transition-shadow">
                       <CardHeader>
                         <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <CardTitle className="text-lg">{lead.company_name}</CardTitle>
-                            <div className="flex items-center gap-2">
-                              <Badge variant={getPriorityBadgeVariant(lead.priority)}>
-                                {lead.priority?.toUpperCase()}
-                              </Badge>
-                              <Badge variant="outline" className="gap-1">
-                                {getStatusIcon(lead.status)}
-                                {lead.status}
-                              </Badge>
+                          <div className="space-y-2 flex-1">
+                            <div className="flex items-start justify-between">
+                              <CardTitle className="text-lg">{lead.company_name}</CardTitle>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleConvertToClient(lead)}>
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    Convert to Client
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
-                          </div>
-                          <div className="flex flex-col items-end">
-                            <div className="flex items-center gap-1 text-sm font-bold">
-                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                              {lead.score || 0}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Select
+                                value={lead.priority || "cold"}
+                                onValueChange={(value) => handlePriorityChange(lead, value)}
+                              >
+                                <SelectTrigger className="h-7 w-24 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="hot">🔥 Hot</SelectItem>
+                                  <SelectItem value="warm">☀️ Warm</SelectItem>
+                                  <SelectItem value="cold">❄️ Cold</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Select
+                                value={lead.status || "new"}
+                                onValueChange={(value) => handleStatusChange(lead, value)}
+                              >
+                                <SelectTrigger className="h-7 w-32 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="new">✨ New</SelectItem>
+                                  <SelectItem value="contacted">📞 Contacted</SelectItem>
+                                  <SelectItem value="qualified">✅ Qualified</SelectItem>
+                                  <SelectItem value="converted">🎉 Converted</SelectItem>
+                                  <SelectItem value="rejected">❌ Rejected</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <div className="flex items-center gap-1 text-sm font-bold ml-auto">
+                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                {lead.score || 0}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -517,16 +679,6 @@ const Leads = () => {
                               </div>
                             </DialogContent>
                           </Dialog>
-                          {lead.status !== "converted" && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleConvertToClient(lead)}
-                              className="w-full mt-2"
-                            >
-                              <UserPlus className="mr-1 h-3 w-3" />
-                              Convert to Client
-                            </Button>
-                          )}
                         </div>
 
                         <div className="text-xs text-muted-foreground pt-2 border-t">
