@@ -23,12 +23,6 @@
 3. **Set Environment Variables**
    - In Netlify dashboard, go to: Site settings → Environment variables
    - Add these variables:
-     ```
-     VITE_SUPABASE_PROJECT_ID=nyozmlwpttctnmljzmdu
-     VITE_SUPABASE_URL=https://nyozmlwpttctnmljzmdu.supabase.co
-     VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55b3ptbHdwdHRjdG5tbGp6bWR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzNjQ2MjgsImV4cCI6MjA4NDk0MDYyOH0.MQhAiOd-C4bE4dZdQKYBYpNIe31RHUv4nvpSw6dr47E
-     VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55b3ptbHdwdHRjdG5tbGp6bWR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzNjQ2MjgsImV4cCI6MjA4NDk0MDYyOH0.MQhAiOd-C4bE4dZdQKYBYpNIe31RHUv4nvpSw6dr47E
-     ```
 
 4. **Deploy**
    - Click "Deploy site"
