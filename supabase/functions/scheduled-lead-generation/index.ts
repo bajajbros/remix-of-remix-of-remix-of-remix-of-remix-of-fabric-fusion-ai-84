@@ -7,6 +7,64 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+async function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function normalizePhone(phone: string): string {
+  if (!phone) return "";
+  return phone.replace(/[^0-9+]/g, '');
+}
+
+async function checkForDuplicate(supabase: any, lead: any, userId: string): Promise<boolean> {
+  const normalizedPhone = normalizePhone(lead.phone || "");
+
+  const checks = [];
+
+  if (lead.google_place_id) {
+    checks.push(
+      supabase
+        .from("leads")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("google_place_id", lead.google_place_id)
+        .maybeSingle()
+    );
+  }
+
+  if (normalizedPhone) {
+    checks.push(
+      supabase
+        .from("leads")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("normalized_phone", normalizedPhone)
+        .maybeSingle()
+    );
+  }
+
+  if (lead.company_name) {
+    checks.push(
+      supabase
+        .from("leads")
+        .select("id")
+        .eq("user_id", userId)
+        .ilike("company_name", lead.company_name)
+        .maybeSingle()
+    );
+  }
+
+  const results = await Promise.all(checks);
+
+  for (const result of results) {
+    if (result.data) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -16,17 +74,33 @@ Deno.serve(async (req: Request) => {
   }
 
   const startTime = Date.now();
+  let logId: string | null = null;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("Missing Authorization header");
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+
+    if (userError || !user) {
+      throw new Error("Unauthorized: Invalid token");
+    }
+
+    const userId = user.id;
+
     const { targetIndustry, targetLocation, limit = 7 } = await req.json().catch(() => ({}));
 
     const logEntry = await supabase
       .from("lead_generation_logs")
       .insert({
+        user_id: userId,
         status: "running",
         target_industry: targetIndustry,
         target_location: targetLocation,
@@ -34,7 +108,7 @@ Deno.serve(async (req: Request) => {
       .select()
       .single();
 
-    const logId = logEntry.data?.id;
+    logId = logEntry.data?.id;
 
     let dayOfWeek = new Date().getDay();
 
@@ -43,6 +117,7 @@ Deno.serve(async (req: Request) => {
       leadSource = await supabase
         .from("lead_sources")
         .select("*")
+        .eq("user_id", userId)
         .eq("industry_name", targetIndustry)
         .eq("is_active", true)
         .maybeSingle();
@@ -50,6 +125,7 @@ Deno.serve(async (req: Request) => {
       leadSource = await supabase
         .from("lead_sources")
         .select("*")
+        .eq("user_id", userId)
         .eq("day_of_week", dayOfWeek)
         .eq("is_active", true)
         .maybeSingle();
@@ -58,6 +134,7 @@ Deno.serve(async (req: Request) => {
         leadSource = await supabase
           .from("lead_sources")
           .select("*")
+          .eq("user_id", userId)
           .eq("is_active", true)
           .order("priority", { ascending: false })
           .limit(1)
@@ -66,14 +143,13 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!leadSource.data) {
-      throw new Error("No active lead source found");
+      throw new Error("No active lead source found. Please configure lead sources in settings.");
     }
 
     const source = leadSource.data;
     const industry = targetIndustry || source.industry_name;
     const locations = targetLocation ? [targetLocation] : (source.target_locations || ["Mumbai"]);
     const location = locations[Math.floor(Math.random() * locations.length)];
-    const searchKeywords = source.search_keywords || ["business"];
 
     console.log(`Generating leads for ${industry} in ${location}`);
 
@@ -86,13 +162,13 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         industry: industry,
         location: location,
-        searchKeywords: searchKeywords,
         limit: limit,
       }),
     });
 
     if (!scraperResponse.ok) {
-      throw new Error(`Scraper failed: ${scraperResponse.status}`);
+      const errorData = await scraperResponse.json().catch(() => ({ message: "Unknown error" }));
+      throw new Error(`Scraper failed: ${errorData.message || scraperResponse.status}`);
     }
 
     const scraperData = await scraperResponse.json();
@@ -102,21 +178,22 @@ Deno.serve(async (req: Request) => {
     let groqCallsTotal = 0;
     let geminiCallsTotal = 0;
     let successfulLeads = 0;
+    let skippedDuplicates = 0;
+    let failedLeads = 0;
 
-    console.log(`Scraped ${scrapedLeads.length} leads`);
+    console.log(`Scraped ${scrapedLeads.length} leads from Google Maps`);
 
     for (const scrapedLead of scrapedLeads) {
       try {
-        const existingLead = await supabase
-          .from("leads")
-          .select("id")
-          .eq("google_place_id", scrapedLead.google_place_id)
-          .maybeSingle();
+        const isDuplicate = await checkForDuplicate(supabase, scrapedLead, userId);
 
-        if (existingLead.data) {
+        if (isDuplicate) {
           console.log(`Skipping duplicate lead: ${scrapedLead.company_name}`);
+          skippedDuplicates++;
           continue;
         }
+
+        await sleep(500);
 
         const enrichmentResponse = await fetch(`${supabaseUrl}/functions/v1/lead-enrichment`, {
           method: "POST",
@@ -138,8 +215,12 @@ Deno.serve(async (req: Request) => {
 
         if (enrichmentResponse.ok) {
           const enrichmentResult = await enrichmentResponse.json();
-          enrichedData = enrichmentResult.enriched_data || enrichedData;
-          groqCallsTotal += enrichmentResult.api_calls || 0;
+          if (enrichmentResult.success && enrichmentResult.enriched_data) {
+            enrichedData = enrichmentResult.enriched_data;
+            groqCallsTotal += enrichmentResult.api_calls || 0;
+          }
+        } else {
+          console.warn(`Enrichment failed for ${scrapedLead.company_name}, using defaults`);
         }
 
         const leadWithEnrichment = {
@@ -147,6 +228,8 @@ Deno.serve(async (req: Request) => {
           ...enrichedData,
           industry: industry,
         };
+
+        await sleep(500);
 
         const scoringResponse = await fetch(`${supabaseUrl}/functions/v1/lead-scoring`, {
           method: "POST",
@@ -168,16 +251,31 @@ Deno.serve(async (req: Request) => {
 
         if (scoringResponse.ok) {
           const scoringResult = await scoringResponse.json();
-          scoringData = scoringResult.scoring || scoringData;
-          geminiCallsTotal += scoringResult.api_calls || 0;
+          if (scoringResult.success && scoringResult.scoring) {
+            scoringData = scoringResult.scoring;
+            geminiCallsTotal += scoringResult.api_calls || 0;
+          }
+        } else {
+          console.warn(`Scoring failed for ${scrapedLead.company_name}, using defaults`);
         }
 
         const finalLead = {
-          ...scrapedLead,
+          user_id: userId,
+          company_name: scrapedLead.company_name,
+          name: scrapedLead.name,
           industry: industry,
-          phone: enrichedData.phone || scrapedLead.phone,
-          email: enrichedData.email || scrapedLead.email,
-          website: enrichedData.website,
+          phone: scrapedLead.phone,
+          email: scrapedLead.email,
+          website: scrapedLead.website,
+          address: scrapedLead.address,
+          city: scrapedLead.city || location,
+          state: scrapedLead.state,
+          latitude: scrapedLead.latitude,
+          longitude: scrapedLead.longitude,
+          google_place_id: scrapedLead.google_place_id,
+          google_rating: scrapedLead.google_rating,
+          google_reviews_count: scrapedLead.google_reviews_count,
+          business_type: scrapedLead.business_type,
           potential_sticker_needs: enrichedData.potential_sticker_needs,
           estimated_order_value: enrichedData.estimated_order_value,
           suggested_pitch: enrichedData.suggested_pitch,
@@ -196,13 +294,17 @@ Deno.serve(async (req: Request) => {
           .select()
           .single();
 
-        if (insertResult.data) {
+        if (insertResult.error) {
+          console.error(`Failed to insert lead ${scrapedLead.company_name}:`, insertResult.error);
+          failedLeads++;
+        } else if (insertResult.data) {
           successfulLeads++;
           console.log(`Successfully saved lead: ${scrapedLead.company_name}`);
         }
 
       } catch (error) {
         console.error(`Error processing lead ${scrapedLead.company_name}:`, error);
+        failedLeads++;
       }
     }
 
@@ -217,24 +319,29 @@ Deno.serve(async (req: Request) => {
     const durationSeconds = (Date.now() - startTime) / 1000;
     const successRate = scrapedLeads.length > 0 ? (successfulLeads / scrapedLeads.length) * 100 : 0;
 
-    await supabase
-      .from("lead_generation_logs")
-      .update({
-        status: "completed",
-        leads_generated: successfulLeads,
-        search_query: `${industry} in ${location}`,
-        google_maps_calls: googleMapsCallsTotal,
-        groq_calls: groqCallsTotal,
-        gemini_calls: geminiCallsTotal,
-        duration_seconds: durationSeconds,
-        success_rate: successRate,
-      })
-      .eq("id", logId);
+    if (logId) {
+      await supabase
+        .from("lead_generation_logs")
+        .update({
+          status: "completed",
+          leads_generated: successfulLeads,
+          search_query: `${industry} in ${location}`,
+          google_maps_calls: googleMapsCallsTotal,
+          groq_calls: groqCallsTotal,
+          gemini_calls: geminiCallsTotal,
+          duration_seconds: durationSeconds,
+          success_rate: successRate,
+        })
+        .eq("id", logId);
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         leads_generated: successfulLeads,
+        skipped_duplicates: skippedDuplicates,
+        failed_leads: failedLeads,
+        total_processed: scrapedLeads.length,
         industry: industry,
         location: location,
         api_usage: {
@@ -244,6 +351,7 @@ Deno.serve(async (req: Request) => {
         },
         duration_seconds: durationSeconds,
         success_rate: successRate,
+        message: `Successfully generated ${successfulLeads} new leads. Skipped ${skippedDuplicates} duplicates.`,
       }),
       {
         status: 200,
@@ -255,6 +363,21 @@ Deno.serve(async (req: Request) => {
     console.error("Scheduled lead generation error:", error);
 
     const durationSeconds = (Date.now() - startTime) / 1000;
+
+    if (logId) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      await supabase
+        .from("lead_generation_logs")
+        .update({
+          status: "failed",
+          error_message: error.message,
+          duration_seconds: durationSeconds,
+        })
+        .eq("id", logId);
+    }
 
     return new Response(
       JSON.stringify({

@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,7 @@ interface ScrapedLead {
   company_name: string;
   phone?: string;
   email?: string;
+  website?: string;
   address?: string;
   city?: string;
   state?: string;
@@ -19,154 +21,203 @@ interface ScrapedLead {
   google_place_id?: string;
   latitude?: number;
   longitude?: number;
+  google_rating?: number;
+  google_reviews_count?: number;
+  formatted_address?: string;
 }
 
-const cityCoordinates = {
-  Mumbai: { lat: 19.0760, lon: 72.8777, state: "Maharashtra" },
-  Delhi: { lat: 28.7041, lon: 77.1025, state: "Delhi" },
-  Bangalore: { lat: 12.9716, lon: 77.5946, state: "Karnataka" },
-  Pune: { lat: 18.5204, lon: 73.8567, state: "Maharashtra" },
-  Hyderabad: { lat: 17.3850, lon: 78.4867, state: "Telangana" },
-  Chennai: { lat: 13.0827, lon: 80.2707, state: "Tamil Nadu" },
-  Kolkata: { lat: 22.5726, lon: 88.3639, state: "West Bengal" },
-  Jaipur: { lat: 26.9124, lon: 75.7873, state: "Rajasthan" },
-  Ahmedabad: { lat: 23.0225, lon: 72.5714, state: "Gujarat" },
-  Lucknow: { lat: 26.8467, lon: 80.9462, state: "Uttar Pradesh" },
-  Surat: { lat: 21.1702, lon: 72.8311, state: "Gujarat" },
-  Nagpur: { lat: 21.1458, lon: 79.0882, state: "Maharashtra" },
-  Indore: { lat: 22.7196, lon: 75.8577, state: "Madhya Pradesh" },
-  Bhopal: { lat: 23.2599, lon: 77.4126, state: "Madhya Pradesh" },
-  Chandigarh: { lat: 30.7333, lon: 76.7794, state: "Chandigarh" },
+const indianCities = {
+  Mumbai: { lat: 19.0760, lng: 72.8777, state: "Maharashtra", radius: 30000 },
+  Delhi: { lat: 28.7041, lng: 77.1025, state: "Delhi", radius: 35000 },
+  Bangalore: { lat: 12.9716, lng: 77.5946, state: "Karnataka", radius: 30000 },
+  Pune: { lat: 18.5204, lng: 73.8567, state: "Maharashtra", radius: 25000 },
+  Hyderabad: { lat: 17.3850, lng: 78.4867, state: "Telangana", radius: 30000 },
+  Chennai: { lat: 13.0827, lng: 80.2707, state: "Tamil Nadu", radius: 30000 },
+  Kolkata: { lat: 22.5726, lng: 88.3639, state: "West Bengal", radius: 30000 },
+  Jaipur: { lat: 26.9124, lng: 75.7873, state: "Rajasthan", radius: 20000 },
+  Ahmedabad: { lat: 23.0225, lng: 72.5714, state: "Gujarat", radius: 25000 },
+  Lucknow: { lat: 26.8467, lng: 80.9462, state: "Uttar Pradesh", radius: 20000 },
+  Surat: { lat: 21.1702, lng: 72.8311, state: "Gujarat", radius: 20000 },
+  Nagpur: { lat: 21.1458, lng: 79.0882, state: "Maharashtra", radius: 20000 },
+  Indore: { lat: 22.7196, lng: 75.8577, state: "Madhya Pradesh", radius: 20000 },
+  Bhopal: { lat: 23.2599, lng: 77.4126, state: "Madhya Pradesh", radius: 20000 },
+  Chandigarh: { lat: 30.7333, lng: 76.7794, state: "Chandigarh", radius: 15000 },
+  Gurgaon: { lat: 28.4595, lng: 77.0266, state: "Haryana", radius: 20000 },
+  Noida: { lat: 28.5355, lng: 77.3910, state: "Uttar Pradesh", radius: 20000 },
+  Ghaziabad: { lat: 28.6692, lng: 77.4538, state: "Uttar Pradesh", radius: 15000 },
+  Faridabad: { lat: 28.4089, lng: 77.3178, state: "Haryana", radius: 15000 },
+  Vishakhapatnam: { lat: 17.6868, lng: 83.2185, state: "Andhra Pradesh", radius: 20000 },
 };
 
-const industryToOSMTags = {
-  retail: ["shop=supermarket", "shop=convenience", "shop=general", "shop=department_store", "shop=mall", "shop=variety_store"],
-  restaurant: ["amenity=restaurant", "amenity=fast_food", "amenity=cafe", "amenity=food_court"],
-  education: ["amenity=school", "amenity=college", "amenity=university", "amenity=training", "amenity=kindergarten"],
-  healthcare: ["amenity=hospital", "amenity=clinic", "amenity=pharmacy", "amenity=doctors", "amenity=dentist"],
-  salon: ["shop=beauty", "shop=hairdresser", "amenity=spa", "shop=cosmetics"],
-  gym: ["leisure=fitness_centre", "leisure=sports_centre", "amenity=gym"],
-  hotel: ["tourism=hotel", "tourism=guest_house", "tourism=hostel", "tourism=motel"],
-  cafe: ["amenity=cafe", "shop=coffee", "amenity=tea_house"],
-  textile: ["shop=fabric", "shop=clothes", "shop=fashion", "craft=tailor", "shop=boutique"],
-  manufacturing: ["man_made=works", "industrial=factory", "landuse=industrial"],
-  default: ["shop", "office=company", "amenity=restaurant", "shop=supermarket"],
+const industryToPlaceTypes = {
+  retail: ["supermarket", "convenience_store", "department_store", "shopping_mall", "store"],
+  restaurant: ["restaurant", "meal_takeaway", "meal_delivery", "food"],
+  education: ["school", "university", "secondary_school", "primary_school"],
+  healthcare: ["hospital", "doctor", "pharmacy", "physiotherapist", "dentist"],
+  salon: ["beauty_salon", "hair_care", "spa"],
+  gym: ["gym"],
+  hotel: ["lodging", "hotel"],
+  cafe: ["cafe", "bakery"],
+  textile: ["clothing_store", "shoe_store"],
+  manufacturing: ["general_contractor", "electrician", "plumber"],
+  events: ["event_planner", "banquet_hall"],
+  "e-commerce": ["store", "electronics_store"],
+  default: ["store", "restaurant", "cafe"],
 };
 
-function buildOverpassQuery(industry: string, city: string, limit: number): string {
-  const coords = cityCoordinates[city] || cityCoordinates.Mumbai;
-  const tags = industryToOSMTags[industry.toLowerCase()] || industryToOSMTags["default"];
-
-  const radius = 25000;
-
-  const nodeQueries = tags.map(tag => {
-    const [key, value] = tag.split('=');
-    return `node["${key}"="${value}"](around:${radius},${coords.lat},${coords.lon});`;
-  }).join('\n  ');
-
-  const wayQueries = tags.map(tag => {
-    const [key, value] = tag.split('=');
-    return `way["${key}"="${value}"](around:${radius},${coords.lat},${coords.lon});`;
-  }).join('\n  ');
-
-  return `[out:json][timeout:30];
-(
-  ${nodeQueries}
-  ${wayQueries}
-);
-out center body ${limit * 2};`;
+async function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function scrapeFromOverpass(industry: string, location: string, limit: number): Promise<ScrapedLead[]> {
-  const query = buildOverpassQuery(industry, location, limit);
-
-  const overpassServers = [
-    'https://overpass-api.de/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter',
-    'https://overpass.openstreetmap.ru/api/interpreter'
-  ];
-
-  let lastError: Error | null = null;
-
-  for (const server of overpassServers) {
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelay = 1000
+): Promise<T> {
+  for (let i = 0; i < maxRetries; i++) {
     try {
-      console.log(`Trying ${server}...`);
+      return await fn();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      const delay = baseDelay * Math.pow(2, i);
+      console.log(`Retry ${i + 1}/${maxRetries} after ${delay}ms...`);
+      await sleep(delay);
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
 
-      const response = await fetch(server, {
-        method: 'POST',
-        body: query,
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+async function getPlaceDetails(placeId: string, apiKey: string): Promise<any> {
+  const fields = [
+    "place_id",
+    "name",
+    "formatted_address",
+    "formatted_phone_number",
+    "international_phone_number",
+    "website",
+    "rating",
+    "user_ratings_total",
+    "geometry",
+    "types",
+    "business_status",
+    "opening_hours",
+  ].join(",");
+
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}`;
+
+  return retryWithBackoff(async () => {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Place Details API error: ${response.status}`);
+    }
+    const data = await response.json();
+    if (data.status !== "OK") {
+      throw new Error(`Place Details API status: ${data.status}`);
+    }
+    return data.result;
+  });
+}
+
+async function searchNearbyPlaces(
+  industry: string,
+  location: string,
+  apiKey: string,
+  limit: number
+): Promise<ScrapedLead[]> {
+  const cityData = indianCities[location] || indianCities.Mumbai;
+  const placeTypes = industryToPlaceTypes[industry.toLowerCase()] || industryToPlaceTypes.default;
+
+  const leads: ScrapedLead[] = [];
+  const seenPlaceIds = new Set<string>();
+  let apiCallCount = 0;
+
+  for (const placeType of placeTypes) {
+    if (leads.length >= limit) break;
+
+    try {
+      const searchUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${cityData.lat},${cityData.lng}&radius=${cityData.radius}&type=${placeType}&key=${apiKey}`;
+
+      const searchData = await retryWithBackoff(async () => {
+        const response = await fetch(searchUrl);
+        apiCallCount++;
+
+        if (!response.ok) {
+          throw new Error(`Nearby Search API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.status === "ZERO_RESULTS") {
+          console.log(`No results for ${placeType} in ${location}`);
+          return { results: [] };
+        }
+
+        if (data.status !== "OK") {
+          throw new Error(`Nearby Search API status: ${data.status}`);
+        }
+
+        return data;
       });
 
-      if (!response.ok) {
-        console.log(`Server ${server} returned ${response.status}`);
+      if (!searchData.results || searchData.results.length === 0) {
         continue;
       }
 
-      const data = await response.json();
-      const cityData = cityCoordinates[location] || cityCoordinates.Mumbai;
+      console.log(`Found ${searchData.results.length} places for ${placeType}`);
 
-      if (data.elements && data.elements.length > 0) {
-        console.log(`Success! Found ${data.elements.length} elements from ${server}`);
-        return parseOverpassData(data, location, cityData, industry, limit);
+      for (const place of searchData.results) {
+        if (leads.length >= limit) break;
+        if (seenPlaceIds.has(place.place_id)) continue;
+
+        if (place.business_status !== "OPERATIONAL") continue;
+
+        seenPlaceIds.add(place.place_id);
+
+        try {
+          await sleep(100);
+
+          const details = await getPlaceDetails(place.place_id, apiKey);
+          apiCallCount++;
+
+          const phone = details.formatted_phone_number || details.international_phone_number;
+
+          if (!phone) {
+            console.log(`Skipping ${place.name} - no phone number`);
+            continue;
+          }
+
+          const lead: ScrapedLead = {
+            name: details.name || place.name,
+            company_name: details.name || place.name,
+            phone: phone,
+            email: undefined,
+            website: details.website,
+            address: details.formatted_address,
+            formatted_address: details.formatted_address,
+            city: location,
+            state: cityData.state,
+            business_type: place.types?.[0] || placeType,
+            industry: industry,
+            google_place_id: place.place_id,
+            latitude: details.geometry?.location?.lat || place.geometry?.location?.lat,
+            longitude: details.geometry?.location?.lng || place.geometry?.location?.lng,
+            google_rating: details.rating,
+            google_reviews_count: details.user_ratings_total || 0,
+          };
+
+          leads.push(lead);
+          console.log(`Added: ${lead.company_name} (${lead.phone})`);
+
+        } catch (detailError) {
+          console.error(`Error getting details for ${place.name}:`, detailError.message);
+          continue;
+        }
       }
+
     } catch (error) {
-      console.error(`Error with ${server}:`, error.message);
-      lastError = error;
+      console.error(`Error searching ${placeType}:`, error.message);
       continue;
     }
-  }
-
-  console.log('All servers failed or returned no results');
-  return [];
-}
-
-function parseOverpassData(data: any, location: string, cityData: any, industry: string, limit: number): ScrapedLead[] {
-  const leads: ScrapedLead[] = [];
-  const seenNames = new Set<string>();
-
-  for (const element of data.elements || []) {
-    if (!element.tags) continue;
-
-    const name = element.tags.name || element.tags.brand || element.tags.operator || null;
-
-    if (!name || name === "Unnamed Business") continue;
-
-    if (seenNames.has(name.toLowerCase())) continue;
-    seenNames.add(name.toLowerCase());
-
-    const streetParts = [];
-    if (element.tags["addr:street"]) streetParts.push(element.tags["addr:street"]);
-    if (element.tags["addr:housenumber"]) streetParts.push(element.tags["addr:housenumber"]);
-    if (element.tags["addr:suburb"]) streetParts.push(element.tags["addr:suburb"]);
-
-    const address = streetParts.length > 0
-      ? streetParts.join(", ")
-      : element.tags["addr:full"] || `${location}, India`;
-
-    const lat = element.lat || element.center?.lat;
-    const lon = element.lon || element.center?.lon;
-
-    const lead: ScrapedLead = {
-      name: name,
-      company_name: name,
-      phone: element.tags.phone || element.tags["contact:phone"] || undefined,
-      email: element.tags.email || element.tags["contact:email"] || undefined,
-      address: address,
-      city: element.tags["addr:city"] || location,
-      state: element.tags["addr:state"] || cityData.state,
-      business_type: element.tags.amenity || element.tags.shop || element.tags.tourism || industry,
-      industry: industry,
-      google_place_id: `osm_${element.type}_${element.id}`,
-      latitude: lat,
-      longitude: lon,
-    };
-
-    leads.push(lead);
-
-    if (leads.length >= limit) break;
   }
 
   return leads;
@@ -181,6 +232,31 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const googleMapsApiKey = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "google_maps_api_key")
+      .maybeSingle();
+
+    if (!googleMapsApiKey?.data?.value) {
+      return new Response(
+        JSON.stringify({
+          error: "Google Maps API key not configured",
+          message: "Please add google_maps_api_key in app_settings table",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const apiKey = googleMapsApiKey.data.value;
+
     const { industry, location, limit = 10 } = await req.json();
 
     if (!industry) {
@@ -198,9 +274,9 @@ Deno.serve(async (req: Request) => {
 
     const targetCity = location || "Mumbai";
 
-    console.log(`Scraping ${limit} leads for ${industry} in ${targetCity}...`);
+    console.log(`Searching ${limit} leads for ${industry} in ${targetCity}...`);
 
-    const leads = await scrapeFromOverpass(industry, targetCity, limit);
+    const leads = await searchNearbyPlaces(industry, targetCity, apiKey, limit);
 
     if (leads.length === 0) {
       return new Response(
@@ -210,7 +286,7 @@ Deno.serve(async (req: Request) => {
           count: 0,
           industry: industry,
           location: targetCity,
-          message: "No businesses found for this industry in the selected location. Try a different city or industry.",
+          message: "No businesses found with valid phone numbers for this industry in the selected location. Try a different city or industry.",
         }),
         {
           status: 200,
@@ -224,11 +300,11 @@ Deno.serve(async (req: Request) => {
         success: true,
         leads: leads,
         count: leads.length,
-        api_calls: 1,
+        api_calls: leads.length * 2,
         industry: industry,
         location: targetCity,
-        source: "OpenStreetMap",
-        message: `Found ${leads.length} real businesses from OpenStreetMap. These will be enriched with AI.`,
+        source: "Google Places API",
+        message: `Found ${leads.length} verified businesses with real phone numbers from Google Maps.`,
       }),
       {
         status: 200,
@@ -241,7 +317,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         error: "Failed to scrape leads",
         message: error.message,
-        details: "There was an error accessing OpenStreetMap data. Please try again.",
+        details: "There was an error accessing Google Places API. Please check your API key and try again.",
       }),
       {
         status: 500,
